@@ -5,7 +5,13 @@ export const sendEmail = async (payload: {
   subject: string;
   text: string;
 }) => {
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error(">>>> CRITICAL ERROR: RESEND_API_KEY IS MISSING FROM ENVIRONMENT");
+    throw new Error("Email service is not configured. Missing RESEND_API_KEY.");
+  }
+
+  const resend = new Resend(apiKey);
 
   console.log(">>>> SERVER-SIDE EMAIL SEND INITIATED TO:", payload.to);
 

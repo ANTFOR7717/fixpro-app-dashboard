@@ -25,8 +25,15 @@ export async function registerUser(
     console.log(">>>> SIGNUP SUCCESSFUL FOR:", user.email);
 
     console.log(">>>> FORCING VERIFICATION EMAIL...");
-    await authServerProvider.sendVerificationEmail(user.email);
-    console.log(">>>> VERIFICATION EMAIL REQUESTED.");
+    try {
+      const emailResult = await authServerProvider.sendVerificationEmail(user.email);
+      console.log(">>>> VERIFICATION EMAIL SUCCESS RESPONSE:", emailResult);
+    } catch (emailError: any) {
+      console.error(">>>> CRITICAL: VERIFICATION EMAIL FAILED:", emailError);
+      throw new Error(`Account created, but verification email failed: ${emailError.message || "Unknown Resend error"}`);
+    }
+    
+    console.log(">>>> VERIFICATION EMAIL REQUESTED AND CONFIRMED BY RESEND.");
 
     return {
       success: {
@@ -37,6 +44,7 @@ export async function registerUser(
       data: { user: { id: user.id, email: user.email } },
     };
   } catch (error: any) {
+    console.error(">>>> REGISTRATION FAILED ERROR:", error);
     if (
       error?.status === "UNPROCESSABLE_ENTITY" ||
       (error instanceof AuthError && error.status === "UNPROCESSABLE_ENTITY")
