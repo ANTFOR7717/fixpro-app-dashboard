@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/design-systems/shadcn/components/badge";
 import { Button } from "@/design-systems/shadcn/components/button";
 import Link from "next/link";
-import { featureRegistry } from "@/lib/registry";
+import { featureRegistry } from "@/config/features-index";
 
 export default function DashboardOverview() {
   const quickActions = featureRegistry.getQuickActions();

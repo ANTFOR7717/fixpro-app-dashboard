@@ -30,6 +30,7 @@ export interface IAuthServerAdapter {
   getRouteHandler: () => IAuthRouteHandler;
   signInEmail: (email: string, pass: string) => Promise<any>;
   signUpEmail: (email: string, pass: string, name: string) => Promise<any>;
+  sendVerificationEmail: (email: string) => Promise<any>;
 }
 
 export class AuthError extends Error {

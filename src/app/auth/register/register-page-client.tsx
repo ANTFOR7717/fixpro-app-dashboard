@@ -6,16 +6,13 @@ import { Card, CardContent } from "@/design-systems/shadcn/components/card";
 import RegisterForm from "@/features/auth/components/register-form";
 import { GoogleIcon, GithubIcon } from "@/design-systems/shadcn/components/icons";
 import { authClientProvider } from "@/auth/client-provider";
-import { GalleryVerticalEnd } from "lucide-react";
 
 export function RegisterPageClient() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-100">
       <div className="flex flex-col items-center w-full max-w-md gap-6">
         <a href="#" className="flex items-center gap-2 self-center font-medium">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <GalleryVerticalEnd className="size-4" />
-          </div>
+          <img src="/fixpro-logo.webp" alt="Fix Pro AI" className="size-6 rounded-md" />
           Fix Pro AI
         </a>
         <Card className="w-full">

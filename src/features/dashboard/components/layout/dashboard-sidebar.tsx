@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, GalleryVerticalEnd } from "lucide-react";
+import { LogOut } from "lucide-react";
 import type { NavItemList } from "@/config/types";
 
 import {
@@ -48,9 +48,7 @@ export function DashboardSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <a href="#">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <GalleryVerticalEnd className="size-4" />
-                </div>
+                <img src="/fixpro-logo.webp" alt="Fix Pro AI" className="size-8 rounded-md" />
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold">{title}</span>
                   <span className="">{version}</span>

@@ -36,7 +36,7 @@ function Hero() {
                 rel="noopener noreferrer"
               >
                 <Image
-                  src="/logo.png"
+                  src="/fixpro-logo.webp"
                   alt="Fix Pro AI"
                   width={16}
                   height={16}

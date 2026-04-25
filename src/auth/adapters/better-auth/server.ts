@@ -45,4 +45,17 @@ export class BetterAuthServer implements IAuthServerAdapter {
       throw error;
     }
   }
+
+  async sendVerificationEmail(email: string) {
+    try {
+      return await auth.api.sendVerificationEmail({ 
+        body: { email, callbackURL: DEFAULT_LOGIN_REDIRECT } 
+      });
+    } catch (error: any) {
+      if (error instanceof APIError) {
+        throw new AuthError(error.body?.message || "Verification email failed", error.status as string);
+      }
+      throw error;
+    }
+  }
 }

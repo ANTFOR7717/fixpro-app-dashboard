@@ -20,7 +20,13 @@ export async function registerUser(
   const { email, password, name } = parsed.data;
 
   try {
+    console.log(">>>> ATTEMPTING SIGNUP FOR:", email);
     const { user } = await authServerProvider.signUpEmail(email, password, name);
+    console.log(">>>> SIGNUP SUCCESSFUL FOR:", user.email);
+
+    console.log(">>>> FORCING VERIFICATION EMAIL...");
+    await authServerProvider.sendVerificationEmail(user.email);
+    console.log(">>>> VERIFICATION EMAIL REQUESTED.");
 
     return {
       success: {

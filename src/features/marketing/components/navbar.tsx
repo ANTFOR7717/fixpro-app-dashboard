@@ -32,7 +32,7 @@ const Navbar = () => {
             </Button>
             <Link href="/" className="flex items-center gap-2">
               <Image
-                src="/logo.png"
+                src="/fixpro-logo.webp"
                 alt="Fix Pro AI Logo"
                 width={24}
                 height={24}

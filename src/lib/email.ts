@@ -1,24 +1,25 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export const sendEmail = async (payload: {
   to: string;
   subject: string;
   text: string;
 }) => {
-  try {
-    const response = await resend.emails.send({
-      from: "",
-      ...payload,
-    });
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
-    console.log("Email sent successfully:", response);
+  console.log(">>>> SERVER-SIDE EMAIL SEND INITIATED TO:", payload.to);
 
-    if (response?.data) return true;
-    return false;
-  } catch (error: any) {
-    console.error("Error sending email:", error);
-    return false;
+  const { data, error } = await resend.emails.send({
+    from: "Fix Pro AI <noreply@goodshepherdinsights.com>",
+    ...payload,
+  });
+
+  if (error) {
+    console.error(">>>> RESEND ERROR RESPONSE:", error);
+    throw new Error(`Failed to send email: ${error.message}`);
   }
+
+  console.log(">>>> RESEND SUCCESS RESPONSE:", data);
+
+  return data;
 };

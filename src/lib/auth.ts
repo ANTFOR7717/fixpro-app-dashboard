@@ -6,8 +6,10 @@ import { admin } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { dash } from "@better-auth/infra";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APP_URL } from "@/lib/config";
 
 export const auth = betterAuth({
+  baseURL: APP_URL,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -15,7 +17,7 @@ export const auth = betterAuth({
       user: schema.user,
     },
   }),
-  trustedOrigins: ["https://mouthwatering-hettie-openairish.ngrok-free.dev"],
+  trustedOrigins: [APP_URL],
   ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
   experimental: {
     joins: true,
@@ -32,6 +34,7 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
+      console.log(">>>> SENDING VERIFICATION LINK:", url);
       await sendEmail({
         to: user.email,
         subject: "Verify your email address",
