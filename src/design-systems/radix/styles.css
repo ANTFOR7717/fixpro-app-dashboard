@@ -1,0 +1,5 @@
+/* Radix Themes stylesheet — imported exclusively by src/design-systems/radix/provider.tsx.
+   Never import this file from globals.css or any shared layout.
+   This boundary prevents Radix's --color-background and scale tokens from
+   overwriting the shadcn token system defined in globals.css. */
+@import "@radix-ui/themes/styles.css";
