@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import LayoutComponent from "@/features/dashboard/components/layout/dashboard-layout";
 import { authClientProvider } from "@/auth/client-provider";
@@ -16,12 +16,24 @@ export function DashboardLayoutClient({
   const pathname = usePathname();
   const router = useRouter();
 
+  // Redirect on bfcache restore if session is gone
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && !document.cookie.includes("better-auth.session_token")) {
+        window.location.replace("/auth/login");
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   const handleLogout = async () => {
     try {
       await authClientProvider.signOut();
-      router.push("/auth/login");
     } catch (e) {
       console.error(e);
+    } finally {
+      window.location.replace("/auth/login");
     }
   };
 

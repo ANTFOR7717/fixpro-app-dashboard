@@ -32,7 +32,7 @@ export async function registerUser(
       console.error(">>>> CRITICAL: VERIFICATION EMAIL FAILED:", emailError);
       throw new Error(`Account created, but verification email failed: ${emailError.message || "Unknown Resend error"}`);
     }
-    
+
     console.log(">>>> VERIFICATION EMAIL REQUESTED AND CONFIRMED BY RESEND.");
 
     return {

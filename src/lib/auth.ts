@@ -17,7 +17,7 @@ export const auth = betterAuth({
       user: schema.user,
     },
   }),
-  trustedOrigins: [APP_URL],
+  trustedOrigins: [APP_URL, "http://localhost:3000"],
   ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
   experimental: {
     joins: true,
