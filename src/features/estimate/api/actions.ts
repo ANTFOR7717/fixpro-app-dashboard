@@ -18,6 +18,27 @@ export async function uploadEstimatePdfAction(prevState: any, formData: FormData
       throw new Error("Invalid file type. Only PDFs are allowed.");
     }
 
+    const rawData = Object.fromEntries(formData.entries());
+    
+    // Server-side Zod validation
+    const metadata = {
+      submitterRole: rawData.submitterRole as string,
+      listingAgentName: rawData.listingAgentName as string,
+      listingAgentPhone: rawData.listingAgentPhone as string,
+      listingAgentEmail: rawData.listingAgentEmail as string,
+      buyerAgentName: rawData.buyerAgentName as string,
+      buyerAgentPhone: rawData.buyerAgentPhone as string,
+      buyerAgentEmail: rawData.buyerAgentEmail as string,
+      propertyAddress: rawData.propertyAddress as string,
+      zipCode: rawData.zipCode as string,
+      timeframe: rawData.timeframe as string,
+    };
+
+    // Re-use logic from schema if possible, or just validate here
+    if (!metadata.submitterRole || !metadata.listingAgentName || !metadata.propertyAddress) {
+      throw new Error("Missing mandatory fields.");
+    }
+
     // Directly stream the file to Vercel Blob Storage
     const { put } = await import("@vercel/blob");
     const blob = await put(`estimates/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`, file, { access: 'public' });
@@ -29,6 +50,7 @@ export async function uploadEstimatePdfAction(prevState: any, formData: FormData
       fileName: file.name,
       fileSize: file.size.toString(),
       status: "processing",
+      ...metadata
     });
 
     revalidatePath("/dashboard/estimate");

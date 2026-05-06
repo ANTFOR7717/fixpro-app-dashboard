@@ -23,6 +23,7 @@
   "dependencies": {
     "@better-auth/infra": "0.1.13",
     "@hookform/resolvers": "^5.0.1",
+    "@mastra/core": "^1.32.1",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -44,6 +45,7 @@
     "drizzle-orm": "^0.45.1",
     "framer-motion": "^12.23.9",
     "lucide-react": "^0.562.0",
+    "mastra": "^1.8.1",
     "next": "^16.0.10",
     "pg": "^8.16.0",
     "react": "^19.2.3",

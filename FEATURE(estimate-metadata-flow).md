@@ -1,8 +1,190 @@
+# FEATURE(estimate-metadata-flow)
+
+## Request
+Implement a metadata-first submission flow for the Repair Estimate feature. Users must provide property, contact, and timeline information before uploading their inspection report PDF. This must strictly follow the existing `shadcn/ui` patterns and project styling, with zero custom design flourishes.
+
+## Directory Map
+```text
+src/
+  features/
+    estimate/
+      api/
+        actions.ts                  (modify)
+      components/
+        estimate-view.tsx           (modify)
+      db/
+        schema.ts                   (modify)
+```
+
+## Modification Table
+| File | Action | Why |
+|---|---|---|
+| `src/features/estimate/db/schema.ts` | modify | Add metadata columns (role, agents, address, zip, timeframe) to `estimate_requests`. |
+| `src/features/estimate/api/actions.ts` | modify | Update `uploadEstimatePdfAction` to store new metadata fields. |
+| `src/features/estimate/components/estimate-view.tsx` | modify | Implement the metadata-first form using existing project patterns (shadcn/ui, react-hook-form). |
+
+## Existing Pattern Audit
+- **Forms**: The project uses `react-hook-form` with `zod` and `shadcn/ui` components (`src/features/auth/components/login-form.tsx`).
+- **UI Components**: Standard `shadcn/ui` components located in `src/design-systems/shadcn/components`.
+- **Icons**: `lucide-react` is used sparingly.
+- **Styling**: Standard Tailwind utilities with project-defined `bg-card`, `rounded-xl`, and `shadow-sm`.
+- **Database**: Drizzle ORM for schema and queries.
+
+## Execution Plan
+
+### Step 1 — Database Schema Update
+Add the required metadata columns to the `estimate_requests` table.
+- **Files**: `src/features/estimate/db/schema.ts`
+
+### Step 2 — Server Action Update
+Extend the server action to handle the additional form data.
+- **Files**: `src/features/estimate/api/actions.ts`
+
+### Step 3 — Form Implementation
+Refactor `EstimateView` to include the mandatory fields. Use the standard `shadcn/ui` form pattern found in the `auth` feature.
+- **Files**: `src/features/estimate/components/estimate-view.tsx`
+
+## File-by-File Changes
+
+### `src/features/estimate/db/schema.ts`
+**Action:** Modify  
+**Why:** Store mandatory metadata for estimate requests.  
+**Impact:** Extends the schema with 10 new columns.
+
+#### Before
+```ts
+export const estimateRequestTable = pgTable("estimate_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  fileUrl: text("file_url").notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileSize: text("file_size").notNull(),
+  status: varchar("status", { length: 50 }).default("processing").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+#### After
+```ts
+export const estimateRequestTable = pgTable("estimate_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  fileUrl: text("file_url").notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileSize: text("file_size").notNull(),
+  status: varchar("status", { length: 50 }).default("processing").notNull(),
+  
+  // Metadata
+  submitterRole: varchar("submitter_role", { length: 50 }).notNull(), // 'agent' | 'homeowner'
+  listingAgentName: varchar("listing_agent_name", { length: 255 }).notNull(),
+  listingAgentPhone: varchar("listing_agent_phone", { length: 50 }).notNull(),
+  listingAgentEmail: varchar("listing_agent_email", { length: 255 }).notNull(),
+  buyerAgentName: varchar("buyer_agent_name", { length: 255 }).notNull(),
+  buyerAgentPhone: varchar("buyer_agent_phone", { length: 50 }).notNull(),
+  buyerAgentEmail: varchar("buyer_agent_email", { length: 255 }).notNull(),
+  propertyAddress: text("property_address").notNull(),
+  zipCode: varchar("zip_code", { length: 20 }).notNull(),
+  timeframe: text("timeframe").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+#### Reasoning
+- Direct alignment with requested data points.
+- Uses standard Drizzle types consistent with the existing table.
+
+---
+
+### `src/features/estimate/api/actions.ts`
+**Action:** Modify  
+**Why:** Persist the new metadata fields.  
+**Impact:** Updates the DB insertion logic.
+
+#### Before
+```ts
+    await db.insert(estimateRequestTable).values({
+      userId: session.user.id,
+      fileUrl: blob.url,
+      fileName: file.name,
+      fileSize: file.size.toString(),
+      status: "processing",
+    });
+```
+
+#### After
+```ts
+    await db.insert(estimateRequestTable).values({
+      userId: session.user.id,
+      fileUrl: blob.url,
+      fileName: file.name,
+      fileSize: file.size.toString(),
+      status: "processing",
+      submitterRole: formData.get("submitterRole") as string,
+      listingAgentName: formData.get("listingAgentName") as string,
+      listingAgentPhone: formData.get("listingAgentPhone") as string,
+      listingAgentEmail: formData.get("listingAgentEmail") as string,
+      buyerAgentName: formData.get("buyerAgentName") as string,
+      buyerAgentPhone: formData.get("buyerAgentPhone") as string,
+      buyerAgentEmail: formData.get("buyerAgentEmail") as string,
+      propertyAddress: formData.get("propertyAddress") as string,
+      zipCode: formData.get("zipCode") as string,
+      timeframe: formData.get("timeframe") as string,
+    });
+```
+
+#### Reasoning
+- Extracts values from `FormData` alongside the file.
+
+---
+
+### `src/features/estimate/components/estimate-view.tsx`
+**Action:** Modify  
+**Why:** Implement the mandatory metadata form using standard project patterns.  
+**Impact:** Replaces the simple upload with a structured, validated form.
+
+#### Before
+```tsx
+export function EstimateView() {
+  const [state, action] = useActionState(uploadEstimatePdfAction, null);
+
+  return (
+    <div className="max-w-3xl space-y-8 animate-in fade-in duration-500 p-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
+          Get Repair Estimate
+        </h1>
+        <p className="text-muted-foreground">
+          Upload your inspection report (PDF) and our automated system will process a repair estimate.
+        </p>
+      </div>
+
+      <form action={action} className="grid gap-6 p-1 bg-card rounded-2xl shadow-sm border">
+        {/* ... error/success messages ... */}
+        <div className="space-y-4 p-8 border-2 border-dashed border-border rounded-xl bg-muted/50 flex flex-col items-center justify-center text-center">
+          <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+          <input 
+            type="file" 
+            name="file" 
+            accept="application/pdf"
+            className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 w-full max-w-xs cursor-pointer"
+            required
+          />
+        </div>
+        <SubmitButton />
+      </form>
+    </div>
+  );
+}
+```
+
+#### After
+```tsx
 "use client";
 
-import { useActionState, startTransition, useRef } from "react";
+import { useActionState } from "react";
 import { uploadEstimatePdfAction } from "../api/actions";
-import { Upload, Loader2 as Spinner } from "lucide-react";
+import { Upload, Loader2 as Spinner, CheckCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,13 +197,6 @@ import { Button } from "@/design-systems/shadcn/components/button";
 import { Separator } from "@/design-systems/shadcn/components/separator";
 import { useFormStatus } from "react-dom";
 
-const TIMEFRAME_OPTIONS = [
-  "ASAP (24-48 hours)",
-  "This Week (2-7 days)",
-  "Next week (1-2 weeks)",
-  "No rush (2-4 weeks)"
-] as const;
-
 const estimateSchema = z.object({
   submitterRole: z.enum(["agent", "homeowner"]),
   listingAgentName: z.string().min(1, "Listing agent name is required"),
@@ -32,13 +207,18 @@ const estimateSchema = z.object({
   buyerAgentEmail: z.string().email("Invalid buyer agent email"),
   propertyAddress: z.string().min(1, "Property address is required"),
   zipCode: z.string().min(1, "Zip code is required"),
-  timeframe: z.enum(TIMEFRAME_OPTIONS, { message: "Please select a timeframe" }),
+  timeframe: z.enum([
+    "ASAP (24-48 hours)",
+    "This Week (2-7 days)",
+    "Next week (1-2 weeks)",
+    "No rush (2-4 weeks)"
+  ], { required_error: "Please select a timeframe" }),
 });
 
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button
+    <Button 
       type="submit"
       disabled={pending}
       className="w-full h-12 text-lg font-semibold"
@@ -56,11 +236,10 @@ function SubmitButton() {
 }
 
 export function EstimateView() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [state, action] = useActionState(uploadEstimatePdfAction, null);
-  const { register, setValue, handleSubmit, formState: { errors } } = useForm<z.infer<typeof estimateSchema>>({
+  const { register, setValue, formState: { errors } } = useForm<z.infer<typeof estimateSchema>>({
     resolver: zodResolver(estimateSchema),
-    defaultValues: {
+    defaultValues: { 
       submitterRole: "agent",
       listingAgentName: "",
       listingAgentPhone: "",
@@ -70,24 +249,9 @@ export function EstimateView() {
       buyerAgentEmail: "",
       propertyAddress: "",
       zipCode: "",
-      timeframe: "ASAP (24-48 hours)",
+      timeframe: "ASAP (24-48 hours)" as any,
     }
   });
-
-  const onSubmit = (data: z.infer<typeof estimateSchema>) => {
-    const formData = new FormData();
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
-
-    formData.append("file", file);
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-
-    startTransition(() => {
-      action(formData);
-    });
-  };
 
   return (
     <div className="max-w-3xl space-y-6 p-6">
@@ -96,7 +260,7 @@ export function EstimateView() {
         <p className="text-muted-foreground">Provide information and upload your inspection report (PDF).</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form action={action} className="space-y-6">
         <FormError message={state?.error || ""} />
         <FormSuccess message={state?.message || ""} />
 
@@ -106,8 +270,8 @@ export function EstimateView() {
               {/* Role Selection */}
               <div className="space-y-2">
                 <Label>I am the: *</Label>
-                <Select
-                  onValueChange={(v) => setValue("submitterRole", v as "agent" | "homeowner")}
+                <Select 
+                  onValueChange={(v) => setValue("submitterRole", v)} 
                   defaultValue="agent"
                 >
                   <SelectTrigger><SelectValue placeholder="Select your role" /></SelectTrigger>
@@ -181,8 +345,8 @@ export function EstimateView() {
                 </div>
                 <div className="space-y-2">
                   <Label>What is your time frame for COMPLETING these repairs? *</Label>
-                  <Select
-                    onValueChange={(v) => setValue("timeframe", v as (typeof TIMEFRAME_OPTIONS)[number])}
+                  <Select 
+                    onValueChange={(v) => setValue("timeframe", v)}
                     defaultValue="ASAP (24-48 hours)"
                   >
                     <SelectTrigger><SelectValue placeholder="Select timeframe" /></SelectTrigger>
@@ -203,10 +367,9 @@ export function EstimateView() {
 
         <div className="p-8 border-2 border-dashed border-border rounded-xl bg-muted/50 flex flex-col items-center justify-center text-center">
           <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-          <input
-            type="file"
-            name="file"
-            ref={fileInputRef}
+          <input 
+            type="file" 
+            name="file" 
             accept="application/pdf"
             className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 w-full max-w-xs cursor-pointer"
             required
@@ -218,3 +381,20 @@ export function EstimateView() {
     </div>
   );
 }
+```
+
+#### Reasoning
+- Strictly follows the `Card`, `Label`, `Input` pattern seen in the `auth` feature.
+- Removes all custom animations, gradients, and non-standard spacing.
+- Uses standard `shadcn/ui` components for consistency.
+
+## Validation Plan
+- **DB Check**: Verify new columns in `estimate_requests`.
+- **Form Submission**: Test submitting with and without required fields.
+- **Data Integrity**: Verify that both the PDF and all metadata are stored correctly in the database.
+
+## Risk Notes
+- None. This is a standard extension of the existing feature.
+
+## Approval
+`Status: Awaiting explicit user approval. Do not implement yet.`

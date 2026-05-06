@@ -1,6 +1,7 @@
+import type { NextConfig } from "next";
 
-const nextConfig  = {
-  /* config options here */
+const nextConfig: NextConfig = {
+  serverExternalPackages: ["@mastra/*"],
 };
 
 export default nextConfig;
