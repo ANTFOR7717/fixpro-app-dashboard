@@ -128,17 +128,17 @@ export function EstimateView() {
                   <div className="space-y-2">
                     <Label htmlFor="listingAgentName">Full Name *</Label>
                     <Input id="listingAgentName" {...register("listingAgentName")} />
-                    {errors.listingAgentName && <p className="text-xs text-red-500">{errors.listingAgentName.message as string}</p>}
+                    {errors.listingAgentName && <p className="text-xs text-red-500">{errors.listingAgentName.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="listingAgentPhone">Cell Number *</Label>
                     <Input id="listingAgentPhone" type="tel" {...register("listingAgentPhone")} />
-                    {errors.listingAgentPhone && <p className="text-xs text-red-500">{errors.listingAgentPhone.message as string}</p>}
+                    {errors.listingAgentPhone && <p className="text-xs text-red-500">{errors.listingAgentPhone.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="listingAgentEmail">Email *</Label>
                     <Input id="listingAgentEmail" type="email" {...register("listingAgentEmail")} />
-                    {errors.listingAgentEmail && <p className="text-xs text-red-500">{errors.listingAgentEmail.message as string}</p>}
+                    {errors.listingAgentEmail && <p className="text-xs text-red-500">{errors.listingAgentEmail.message}</p>}
                   </div>
                 </div>
 
@@ -147,17 +147,17 @@ export function EstimateView() {
                   <div className="space-y-2">
                     <Label htmlFor="buyerAgentName">Full Name *</Label>
                     <Input id="buyerAgentName" {...register("buyerAgentName")} />
-                    {errors.buyerAgentName && <p className="text-xs text-red-500">{errors.buyerAgentName.message as string}</p>}
+                    {errors.buyerAgentName && <p className="text-xs text-red-500">{errors.buyerAgentName.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="buyerAgentPhone">Cell Number *</Label>
                     <Input id="buyerAgentPhone" type="tel" {...register("buyerAgentPhone")} />
-                    {errors.buyerAgentPhone && <p className="text-xs text-red-500">{errors.buyerAgentPhone.message as string}</p>}
+                    {errors.buyerAgentPhone && <p className="text-xs text-red-500">{errors.buyerAgentPhone.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="buyerAgentEmail">Email *</Label>
                     <Input id="buyerAgentEmail" type="email" {...register("buyerAgentEmail")} />
-                    {errors.buyerAgentEmail && <p className="text-xs text-red-500">{errors.buyerAgentEmail.message as string}</p>}
+                    {errors.buyerAgentEmail && <p className="text-xs text-red-500">{errors.buyerAgentEmail.message}</p>}
                   </div>
                 </div>
               </div>
@@ -171,12 +171,12 @@ export function EstimateView() {
                   <div className="md:col-span-2 space-y-2">
                     <Label htmlFor="propertyAddress">Property Address *</Label>
                     <Input id="propertyAddress" {...register("propertyAddress")} />
-                    {errors.propertyAddress && <p className="text-xs text-red-500">{errors.propertyAddress.message as string}</p>}
+                    {errors.propertyAddress && <p className="text-xs text-red-500">{errors.propertyAddress.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="zipCode">Zip code *</Label>
                     <Input id="zipCode" {...register("zipCode")} />
-                    {errors.zipCode && <p className="text-xs text-red-500">{errors.zipCode.message as string}</p>}
+                    {errors.zipCode && <p className="text-xs text-red-500">{errors.zipCode.message}</p>}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -194,7 +194,7 @@ export function EstimateView() {
                     </SelectContent>
                   </Select>
                   <input type="hidden" {...register("timeframe")} />
-                  {errors.timeframe && <p className="text-xs text-red-500">{errors.timeframe.message as string}</p>}
+                  {errors.timeframe && <p className="text-xs text-red-500">{errors.timeframe.message}</p>}
                 </div>
               </div>
             </div>

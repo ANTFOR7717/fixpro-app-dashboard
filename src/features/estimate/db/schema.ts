@@ -7,8 +7,9 @@ export const estimateRequestTable = pgTable("estimate_requests", {
   fileUrl: text("file_url").notNull(),
   fileName: varchar("file_name", { length: 255 }).notNull(),
   fileSize: text("file_size").notNull(),
-  status: varchar("status", { length: 50 }).default("processing").notNull(),
-  
+  status: varchar("status", { length: 50 }).default("uploaded").notNull(),
+  summary: text("summary"),
+
   // Metadata
   submitterRole: varchar("submitter_role", { length: 50 }).notNull(), // 'agent' | 'homeowner'
   listingAgentName: varchar("listing_agent_name", { length: 255 }).notNull(),

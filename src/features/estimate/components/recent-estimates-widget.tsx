@@ -65,6 +65,12 @@ export async function RecentEstimatesWidget() {
               </div>
             </div>
             <div className="flex items-center gap-4 shrink-0 pl-4">
+              {upload.status === "uploaded" && (
+                <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  Received
+                </Badge>
+              )}
               {upload.status === "processing" && (
                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

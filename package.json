@@ -21,6 +21,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.62",
     "@better-auth/infra": "0.1.13",
     "@hookform/resolvers": "^5.0.1",
     "@mastra/core": "^1.32.1",
