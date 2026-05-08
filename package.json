@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.62",
-    "@better-auth/infra": "0.1.13",
+    "@better-auth/infra": "0.2.6",
     "@hookform/resolvers": "^5.0.1",
     "@mastra/core": "^1.32.1",
     "@radix-ui/react-alert-dialog": "^1.1.14",
