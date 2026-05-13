@@ -51,7 +51,7 @@ export async function uploadEstimatePdfAction(prevState: { success: boolean; mes
     });
 
     if (!validation.success) {
-      const firstError = validation.error.errors[0];
+      const firstError = validation.error.issues[0];
       return { success: false, error: `Validation Error - ${firstError.path.join(".")}: ${firstError.message}` };
     }
 

@@ -16,43 +16,20 @@ const startStep = createStep({
   }
 });
 
-const fetchStep = createStep({
-  id: 'fetch-file',
-  inputSchema: z.object({ estimateRequestId: z.string(), fileUrl: z.string().url() }),
-  outputSchema: z.object({ estimateRequestId: z.string(), buffer: z.instanceof(Buffer) }),
-  execute: async ({ inputData }) => {
-    const res = await fetch(inputData.fileUrl);
-    if (!res.ok) throw new Error(`Fetch failed: ${res.statusText}`);
-    const buffer = Buffer.from(await res.arrayBuffer());
-    return { estimateRequestId: inputData.estimateRequestId, buffer };
-  }
-});
-
-const extractStep = createStep({
-  id: 'extract-text',
-  inputSchema: z.object({ estimateRequestId: z.string(), buffer: z.instanceof(Buffer) }),
-  outputSchema: z.object({ estimateRequestId: z.string(), text: z.string() }),
-  execute: async ({ inputData, mastra }) => {
-    const tool = mastra.getTool('pdf-text-extractor');
-    const result = await tool!.execute({ buffer: inputData.buffer });
-    return { estimateRequestId: inputData.estimateRequestId, text: result.text };
-  }
-});
-
 const summarizeStep = createStep({
-  id: 'summarize-text',
-  inputSchema: z.object({ estimateRequestId: z.string(), text: z.string() }),
+  id: 'summarize-document',
+  inputSchema: z.object({ estimateRequestId: z.string(), fileUrl: z.string().url() }),
   outputSchema: z.object({ estimateRequestId: z.string(), summary: z.string() }),
   execute: async ({ inputData, mastra }) => {
     const agent = mastra.getAgent('estimate-summarizer');
 
-    const result = await agent!.generate([
+    const result = await agent.generate([
       {
         role: 'user',
         content: [
           { type: 'text', text: 'Provide a structured technical summary of repairs and costs from this report.' },
-          { type: 'text', text: inputData.text }
-        ]
+          { type: 'file', mediaType: 'application/pdf', data: new URL(inputData.fileUrl) },
+        ],
       }
     ]);
 
@@ -81,7 +58,6 @@ export const summarizeEstimateWorkflow = new Workflow({
   outputSchema: z.object({ success: z.boolean() }),
 })
   .then(startStep)
-  .then(fetchStep)
-  .then(extractStep)
   .then(summarizeStep)
-  .then(persistStep);
+  .then(persistStep)
+  .commit();
