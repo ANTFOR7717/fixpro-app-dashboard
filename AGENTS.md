@@ -1,0 +1,86 @@
+# AGENTS.md — fixpro-app-dashboard
+
+Project-scoped instructions for AI agents working in this repository. These
+rules take precedence over any conflicting personal rules.
+
+## Version control workflow
+
+**All feature work MUST be delivered via a feature branch and a pull request.
+Do NOT commit directly to `main`.**
+
+For every feature, bug fix, refactor, or chore:
+
+1. **Branch off `main`** before making any changes.
+   - Naming: `feat/<short-name>`, `fix/<short-name>`, `refactor/<short-name>`,
+     or `chore/<short-name>`. Use kebab-case.
+   - Example: `feat/estimate-retry`, `fix/contacts-duplicate-check`.
+2. **Commit to that branch only.** Never `git commit` while `HEAD` is on
+   `main`. If you find yourself on `main` with staged changes, stash them,
+   create the branch, then re-apply.
+3. **Push the branch to `origin`**.
+4. **Open a PR targeting `main`** using the `gh` CLI (`gh pr create`). Include:
+   - A clear title summarizing the change.
+   - A body describing the problem, the approach, validation performed
+     (`pnpm exec tsc --noEmit`, `pnpm exec eslint <paths>`, manual QA steps),
+     and any DB migrations included.
+   - Link to the plan artifact (`plans/FEATURE/FEATURE(<name>).md`) when one
+     exists.
+5. **Report the PR URL back to the user** after creation. Do NOT merge the
+   PR — the human reviewer merges it.
+
+### Commit message rules
+
+- Use Conventional Commits prefixes (`feat:`, `fix:`, `refactor:`, `chore:`,
+  `docs:`).
+- Include `Co-Authored-By: Oz <oz-agent@warp.dev>` as the final line of every
+  commit message authored by an AI agent.
+
+### Exceptions
+
+The only permitted direct-to-`main` operations are:
+
+- Pulling/rebasing to stay current with `origin/main`.
+- Operations the human user explicitly approves in the current conversation
+  (e.g. "commit this directly to main"). One-time approval does not establish
+  a standing exception.
+
+## Validation gates
+
+Before opening a PR, the following must pass on the feature branch:
+
+- `pnpm exec tsc --noEmit` — TypeScript clean.
+- `pnpm exec eslint <changed paths>` — ESLint clean for the files touched.
+  (Project-level `pnpm lint` is broken under Next 16 and is not the gate.)
+- Any DB schema change must be accompanied by a `drizzle-kit generate`d
+  migration in `drizzle/` and applied via `pnpm db:migrate` against the dev
+  DB before opening the PR.
+
+## Plan-driven work
+
+Non-trivial features should follow the planning workflow:
+
+1. Research the existing patterns (`src/features/<feature>/...`, existing
+   server actions, schemas, components).
+2. Author a plan at `plans/FEATURE/FEATURE(<name>).md` via the planning
+   tools, and wait for explicit user approval before implementing.
+3. Implement on the feature branch, validate, open the PR.
+
+## Stack reminders
+
+- Next.js 16 (uses `after()` for post-response background work; no `next lint`).
+- Drizzle ORM 0.45.x with Postgres. Migrations live in `drizzle/`; the source
+  of truth schema is re-exported from `src/db/schema.ts`.
+- Mastra `@mastra/core@1.32.x` for AI workflows. Prefer documented patterns:
+  per-step `retries`, resilient-step returns + `.branch()` for failure
+  routing, and `run.start().status` inspection over `try/catch`.
+- pnpm is the package manager.
+- `react-hot-toast` is the canonical action-feedback channel.
+
+## Useful commands
+
+```sh
+pnpm db:generate        # generate drizzle migration from schema diff
+pnpm db:migrate         # apply pending migrations to the dev DB
+pnpm exec tsc --noEmit  # typecheck
+pnpm exec eslint <path> # lint specific files (project-level pnpm lint is broken)
+```
