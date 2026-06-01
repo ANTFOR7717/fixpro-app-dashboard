@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { IconName } from "lucide-react/dynamic";
 import type { ReactNode } from "react";
 
 export interface FeatureWidget {
@@ -9,10 +10,13 @@ export interface FeatureWidget {
   size?: "sm" | "md" | "lg" | "full";
 }
 
+// `icon` is a string (lucide IconName) so navigation items remain serializable
+// across the Next.js server→client component boundary. The sidebar resolves
+// the actual component via lucide-react's `DynamicIcon`.
 export interface FeatureNavigation {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconName;
   adminOnly?: boolean;
   position?: "sidebar" | "navbar" | "footer";
 }

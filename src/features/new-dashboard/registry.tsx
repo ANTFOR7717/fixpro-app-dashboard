@@ -1,4 +1,3 @@
-import { Globe, Lightbulb } from "lucide-react";
 import type { FeatureMetadata } from "@/lib/registry";
 
 /**
@@ -18,19 +17,11 @@ const InsightsPlaceholder = () => <div className="h-[200px] flex items-center ju
 export const newDashboardMetadata: FeatureMetadata = {
   id: "new-dashboard",
   name: "New Dashboard Experience",
-  navigation: [
-    {
-      href: "/dashboard/new-dashboard",
-      label: "Analytics",
-      icon: Globe,
-      position: "sidebar",
-    },
-  ],
   page: (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">New Dashboard Experience</h1>
-        <p className="text-muted-foreground">This is the fully modular "new-dashboard" page, rendered through the registry.</p>
+        <p className="text-muted-foreground">This is the fully modular &ldquo;new-dashboard&rdquo; page, rendered through the registry.</p>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

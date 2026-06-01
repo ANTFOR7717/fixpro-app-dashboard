@@ -1,9 +1,21 @@
+import { ClipboardList } from "lucide-react";
 import type { FeatureMetadata } from "@/lib/registry";
 import { RecentEstimatesWidget } from "./components/recent-estimates-widget";
 
 export const estimateMetadata: FeatureMetadata = {
   id: "estimate",
   name: "Repair Estimates",
+  navigation: [
+    {
+      href: "/dashboard/estimate",
+      label: "Estimates",
+      icon: "clipboard-list",
+      position: "sidebar",
+    },
+  ],
+  quickActions: [
+    { href: "/dashboard/estimate", label: "Upload Inspection Report", icon: ClipboardList },
+  ],
   widgets: [
     {
       id: "recent-estimates",

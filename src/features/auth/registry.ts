@@ -1,4 +1,3 @@
-import { LogIn, UserPlus } from "lucide-react";
 import type { FeatureMetadata } from "@/lib/registry";
 
 export const authMetadata: FeatureMetadata = {
@@ -9,13 +8,13 @@ export const authMetadata: FeatureMetadata = {
     {
       href: "/auth/login",
       label: "Login",
-      icon: LogIn,
+      icon: "log-in",
       position: "navbar",
     },
     {
       href: "/auth/register",
       label: "Register",
-      icon: UserPlus,
+      icon: "user-plus",
       position: "navbar",
     },
   ],
