@@ -13,6 +13,9 @@ export const estimateMetadata: FeatureMetadata = {
       position: "sidebar",
     },
   ],
+  quickActions: [
+    { href: "/dashboard/estimates", label: "View All Estimates", icon: FileText },
+  ],
   widgets: [
     {
       id: "recent-estimates",
