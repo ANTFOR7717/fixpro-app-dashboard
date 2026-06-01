@@ -7,9 +7,9 @@ export const estimateMetadata: FeatureMetadata = {
   name: "Repair Estimates",
   navigation: [
     {
-      href: "/dashboard/estimate",
+      href: "/dashboard/estimates",
       label: "Estimates",
-      icon: "clipboard-list",
+      icon: "file-text",
       position: "sidebar",
     },
   ],

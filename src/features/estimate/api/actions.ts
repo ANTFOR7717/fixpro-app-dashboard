@@ -197,3 +197,58 @@ export async function retryEstimateAction(
     return { success: false, error: error.message || "Failed to retry." };
   }
 }
+
+export async function deleteEstimateAction(
+  _prev: { success: boolean; message?: string; error?: string } | null,
+  formData: FormData,
+) {
+  try {
+    const session = await authServerProvider.getSession({ headers: await headers() });
+    if (!session?.user) throw new Error("UNAUTHORIZED_ACCESS_DENIED");
+
+    const id = String(formData.get("id") ?? "");
+    if (!id) return { success: false, error: "Missing id." };
+
+    const [row] = await db
+      .select({
+        id: estimateRequestTable.id,
+        userId: estimateRequestTable.userId,
+        fileUrl: estimateRequestTable.fileUrl,
+        status: estimateRequestTable.status,
+      })
+      .from(estimateRequestTable)
+      .where(and(eq(estimateRequestTable.id, id), eq(estimateRequestTable.userId, session.user.id)))
+      .limit(1);
+
+    if (!row) {
+      return { success: false, error: "Estimate not found." };
+    }
+    if (row.status === "processing") {
+      return { success: false, error: "Cannot delete while processing. Please wait for it to finish or fail." };
+    }
+
+    // Delete the Blob first; if this fails we leave the DB row intact so the
+    // user can retry. If the Blob is already missing, swallow and continue.
+    const { del, BlobNotFoundError } = await import("@vercel/blob");
+    try {
+      await del(row.fileUrl);
+    } catch (e) {
+      if (e instanceof BlobNotFoundError) {
+        console.warn("Blob already missing during delete, continuing:", row.fileUrl);
+      } else {
+        throw e;
+      }
+    }
+
+    await db
+      .delete(estimateRequestTable)
+      .where(and(eq(estimateRequestTable.id, id), eq(estimateRequestTable.userId, session.user.id)));
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/estimates");
+    return { success: true, message: "Estimate deleted." };
+  } catch (error: any) {
+    console.error("Server Action Error (deleteEstimateAction):", error);
+    return { success: false, error: error.message || "Failed to delete estimate." };
+  }
+}
