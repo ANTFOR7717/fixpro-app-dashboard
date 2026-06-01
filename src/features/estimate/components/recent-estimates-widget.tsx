@@ -3,7 +3,7 @@ import { estimateRequestTable } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { authServerProvider } from "@/auth/server-provider";
 import { headers } from "next/headers";
-import { FileText, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { FileText, Loader2, CheckCircle2, XCircle, ArrowRight } from "lucide-react";
 import { Badge } from "@/design-systems/shadcn/components/badge";
 import { Button } from "@/design-systems/shadcn/components/button";
 import Link from "next/link";
@@ -35,9 +35,14 @@ export async function RecentEstimatesWidget() {
         <p className="text-sm text-muted-foreground mt-1 max-w-sm mb-6">
           Upload your first inspection report to begin generating accurate repair estimates.
         </p>
-        <Button asChild>
-          <Link href="/dashboard/estimate">Upload PDF</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild>
+            <Link href="/dashboard/estimate">Upload PDF</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/estimates">View all estimates</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -113,6 +118,14 @@ export async function RecentEstimatesWidget() {
             </div>
           );
         })}
+      </div>
+      <div className="flex items-center justify-end border-t border-border bg-muted/30 px-4 py-2">
+        <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+          <Link href="/dashboard/estimates" className="flex items-center gap-1.5">
+            View all estimates
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </Button>
       </div>
     </div>
   );
