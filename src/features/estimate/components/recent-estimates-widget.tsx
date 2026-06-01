@@ -7,6 +7,7 @@ import { FileText, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/design-systems/shadcn/components/badge";
 import { Button } from "@/design-systems/shadcn/components/button";
 import Link from "next/link";
+import { EstimateRetryButton } from "./estimate-retry-button";
 
 export async function RecentEstimatesWidget() {
   const session = await authServerProvider.getSession({
@@ -76,10 +77,13 @@ export async function RecentEstimatesWidget() {
                   </Badge>
                 )}
                 {upload.status === "failed" && (
-                  <Badge variant="secondary" className="bg-destructive/10 text-destructive hover:bg-destructive/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                    <XCircle className="h-3.5 w-3.5" />
-                    Failed
-                  </Badge>
+                  <>
+                    <Badge variant="secondary" className="bg-destructive/10 text-destructive hover:bg-destructive/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
+                      <XCircle className="h-3.5 w-3.5" />
+                      Failed
+                    </Badge>
+                    <EstimateRetryButton id={upload.id} />
+                  </>
                 )}
                 {upload.status === "completed" && (
                   <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">

@@ -1,0 +1,1 @@
+ALTER TABLE "estimate_requests" ADD COLUMN "error_message" text;

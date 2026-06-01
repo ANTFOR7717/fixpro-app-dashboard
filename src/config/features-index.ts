@@ -4,6 +4,7 @@ import { userManagementMetadata } from "@/features/user-management/registry";
 import { dashboardMetadata } from "@/features/dashboard/registry";
 import { newDashboardMetadata } from "@/features/new-dashboard/registry";
 import { estimateMetadata } from "@/features/estimate/registry";
+import { contactsMetadata } from "@/features/contacts/registry";
 
 // Core Features
 featureRegistry.register(dashboardMetadata);
@@ -13,5 +14,6 @@ featureRegistry.register(userManagementMetadata);
 // New Feature Integration
 featureRegistry.register(newDashboardMetadata);
 featureRegistry.register(estimateMetadata);
+featureRegistry.register(contactsMetadata);
 
 export { featureRegistry };

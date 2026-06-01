@@ -79,4 +79,7 @@ export const accountRelations = relations(account, ({ one }) => ({
     user: one(user, { fields: [account.userId], references: [user.id] }),
 }));
 
+export { contactsTable } from "@/features/contacts/db/schema";
+export { estimateRequestTable } from "@/features/estimate/db/schema";
+
 

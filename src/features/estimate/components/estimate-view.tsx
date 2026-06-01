@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, startTransition, useRef } from "react";
+import { useActionState, startTransition, useRef, useState } from "react";
 import { uploadEstimatePdfAction } from "../api/actions";
+import { ContactPicker } from "@/features/contacts/components/contact-picker";
+import type { Contact } from "@/features/contacts/db/schema";
 import { Upload, Loader2 as Spinner } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,8 +57,14 @@ function SubmitButton() {
   );
 }
 
-export function EstimateView() {
+interface EstimateViewProps {
+  contacts: Contact[];
+}
+
+export function EstimateView({ contacts }: EstimateViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [saveListingAsContact, setSaveListingAsContact] = useState(false);
+  const [saveBuyerAsContact, setSaveBuyerAsContact] = useState(false);
   const [state, action] = useActionState(uploadEstimatePdfAction, null);
   const { register, setValue, handleSubmit, formState: { errors } } = useForm<z.infer<typeof estimateSchema>>({
     resolver: zodResolver(estimateSchema),
@@ -83,6 +91,9 @@ export function EstimateView() {
     Object.entries(data).forEach(([key, value]) => {
       formData.append(key, value);
     });
+
+    if (saveListingAsContact) formData.append("saveListingAsContact", "1");
+    if (saveBuyerAsContact) formData.append("saveBuyerAsContact", "1");
 
     startTransition(() => {
       action(formData);
@@ -125,6 +136,15 @@ export function EstimateView() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <Label className="text-lg font-bold">Listing Agent Information</Label>
+                  <ContactPicker
+                    label="Use saved contact"
+                    contacts={contacts}
+                    onSelect={(c) => {
+                      setValue("listingAgentName", c.fullName, { shouldValidate: true });
+                      setValue("listingAgentPhone", c.phone, { shouldValidate: true });
+                      setValue("listingAgentEmail", c.email, { shouldValidate: true });
+                    }}
+                  />
                   <div className="space-y-2">
                     <Label htmlFor="listingAgentName">Full Name *</Label>
                     <Input id="listingAgentName" {...register("listingAgentName")} />
@@ -140,10 +160,28 @@ export function EstimateView() {
                     <Input id="listingAgentEmail" type="email" {...register("listingAgentEmail")} />
                     {errors.listingAgentEmail && <p className="text-xs text-red-500">{errors.listingAgentEmail.message}</p>}
                   </div>
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={saveListingAsContact}
+                      onChange={(e) => setSaveListingAsContact(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    Save listing agent as a contact
+                  </label>
                 </div>
 
                 <div className="space-y-4">
                   <Label className="text-lg font-bold">Buyer Agent Information</Label>
+                  <ContactPicker
+                    label="Use saved contact"
+                    contacts={contacts}
+                    onSelect={(c) => {
+                      setValue("buyerAgentName", c.fullName, { shouldValidate: true });
+                      setValue("buyerAgentPhone", c.phone, { shouldValidate: true });
+                      setValue("buyerAgentEmail", c.email, { shouldValidate: true });
+                    }}
+                  />
                   <div className="space-y-2">
                     <Label htmlFor="buyerAgentName">Full Name *</Label>
                     <Input id="buyerAgentName" {...register("buyerAgentName")} />
@@ -159,6 +197,15 @@ export function EstimateView() {
                     <Input id="buyerAgentEmail" type="email" {...register("buyerAgentEmail")} />
                     {errors.buyerAgentEmail && <p className="text-xs text-red-500">{errors.buyerAgentEmail.message}</p>}
                   </div>
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={saveBuyerAsContact}
+                      onChange={(e) => setSaveBuyerAsContact(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    Save buyer agent as a contact
+                  </label>
                 </div>
               </div>
 
