@@ -223,10 +223,10 @@ export async function deleteEstimateAction(
     if (!row) {
       return { success: false, error: "Estimate not found." };
     }
-    if (row.status === "processing") {
-      return { success: false, error: "Cannot delete while processing. Please wait for it to finish or fail." };
-    }
 
+    // Deletion is allowed in any status. If the AI workflow happens to be
+    // mid-execution, its eventual UPDATE against this id is a benign no-op
+    // because Drizzle's update().where(...) on a missing row affects 0 rows.
     // Delete the Blob first; if this fails we leave the DB row intact so the
     // user can retry. If the Blob is already missing, swallow and continue.
     const { del, BlobNotFoundError } = await import("@vercel/blob");
