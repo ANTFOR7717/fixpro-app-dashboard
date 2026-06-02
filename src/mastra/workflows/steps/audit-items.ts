@@ -22,6 +22,7 @@ export const auditItemsStep = createStep({
   inputSchema: z.object({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
+    zipCode: z.string(),
     items: z.array(billableItemSchema),
     failed: z.boolean(),
     errorMessage: z.string().nullable(),
@@ -29,6 +30,7 @@ export const auditItemsStep = createStep({
   outputSchema: z.object({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
+    zipCode: z.string(),
     items: z.array(billableItemSchema),
     auditItems: z.array(billableItemSchema),
     auditFailed: z.boolean(),
@@ -90,6 +92,7 @@ export const auditItemsStep = createStep({
         return {
           estimateRequestId: inputData.estimateRequestId,
           fileUrl: inputData.fileUrl,
+          zipCode: inputData.zipCode,
           items: inputData.items,
           auditItems: [],
           auditFailed: true,
@@ -99,6 +102,7 @@ export const auditItemsStep = createStep({
       return {
         estimateRequestId: inputData.estimateRequestId,
         fileUrl: inputData.fileUrl,
+        zipCode: inputData.zipCode,
         items: inputData.items,
         auditItems: extraction.items,
         auditFailed: false,
@@ -108,6 +112,7 @@ export const auditItemsStep = createStep({
       return {
         estimateRequestId: inputData.estimateRequestId,
         fileUrl: inputData.fileUrl,
+        zipCode: inputData.zipCode,
         items: inputData.items,
         auditItems: [],
         auditFailed: true,

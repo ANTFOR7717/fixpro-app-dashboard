@@ -5,6 +5,7 @@ import { markProcessingStep } from './steps/mark-processing';
 import { extractItemsStep } from './steps/extract-items';
 import { auditItemsStep } from './steps/audit-items';
 import { mergeItemsStep } from './steps/merge-items';
+import { priceItemsStep } from './steps/price-items';
 import { persistSuccessStep } from './steps/persist-success';
 import { persistFailureStep } from './steps/persist-failure';
 
@@ -19,7 +20,8 @@ import { persistFailureStep } from './steps/persist-failure';
  *      └── false: success sub-workflow:
  *                    audit-items   → Pass B, non-fatal (retries 1)
  *                    merge-items   → pure dedup + renumber
- *                    persist-success → writes versioned JSON envelope
+ *                    price-items   → per-item pricer call (retries 1)
+ *                    persist-success → writes v2 JSON envelope (items + prices)
  *
  * Each step is a named export and the workflow body is a wiring diagram.
  * Adding a stage = one `.then(...)` line; removing a stage = delete one line.
@@ -32,6 +34,7 @@ const successPathWorkflow = createWorkflow({
 })
   .then(auditItemsStep)
   .then(mergeItemsStep)
+  .then(priceItemsStep)
   .then(persistSuccessStep)
   .commit();
 

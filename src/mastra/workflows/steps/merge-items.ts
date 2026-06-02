@@ -39,12 +39,14 @@ export const mergeItemsStep = createStep({
   inputSchema: z.object({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
+    zipCode: z.string(),
     items: z.array(billableItemSchema),
     auditItems: z.array(billableItemSchema),
     auditFailed: z.boolean(),
   }),
   outputSchema: z.object({
     estimateRequestId: z.string(),
+    zipCode: z.string(),
     items: z.array(billableItemSchema),
   }),
   execute: async ({ inputData, mastra }) => {
@@ -93,6 +95,7 @@ export const mergeItemsStep = createStep({
 
     return {
       estimateRequestId: inputData.estimateRequestId,
+      zipCode: inputData.zipCode,
       items: renumbered,
     };
   },
