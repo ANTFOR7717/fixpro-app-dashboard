@@ -4,16 +4,9 @@ import { Separator } from '@/design-systems/shadcn/components/separator';
 import { Badge } from '@/design-systems/shadcn/components/badge';
 import type { estimateRequestTable } from '@/features/estimate/db/schema';
 import type { ParsedEnvelope } from '@/features/estimate/lib/envelope';
-import {
-  PRICE_UNAVAILABLE,
-  formatCurrency,
-  formatLineTotal,
-  formatPartyRole,
-} from '@/features/estimate/lib/format';
-import type {
-  BillableItem,
-  PricedLineItem,
-} from '@/mastra/agents/billable-item-extractor.schema';
+import { formatPartyRole } from '@/features/estimate/lib/format';
+import { ItemsSection } from '@/features/estimate/components/items-section';
+import type { PricedLineItem } from '@/mastra/agents/billable-item-extractor.schema';
 
 type EstimateRow = typeof estimateRequestTable.$inferSelect;
 
@@ -30,12 +23,12 @@ interface EstimateReportProps {
  *   ────────────────────────────────────────────────────────
  *   Property                               Parties  [Submitted by …]
  *   ────────────────────────────────────────────────────────
- *   Billable items
- *     #item-001 · <trade> — <action>             qty × $unit
- *                                                  = $line
- *     <scope> @ <location>
- *     "<sourceQuote>" (p. 14)
- *     [confidence] source: <source>
+ *   Billable items                          [toggles]
+ *     INTERIOR · #item-001
+ *     Replace damaged drywall section            qty × $unit
+ *     Location: north wall, primary bedroom        = $line
+ *     "<sourceQuote>" (p. 14)                    (toggleable)
+ *     [confidence] source: <source>              (toggleable)
  *   ────────────────────────────────────────────────────────
  *                                          Subtotal: $X,XXX.00
  *                                          Unpriced items: N
@@ -49,7 +42,7 @@ export function EstimateReport({ row, envelope }: EstimateReportProps) {
       <Separator className="my-8" />
       <PropertyAndParties row={row} />
       <Separator className="my-8" />
-      <ItemsSection envelope={envelope} />
+      <ItemsBlock envelope={envelope} />
       <Separator className="my-8" />
       <ReportFooter />
     </Card>
@@ -150,7 +143,7 @@ function PartyBlock({
   );
 }
 
-function ItemsSection({ envelope }: { envelope: ParsedEnvelope }) {
+function ItemsBlock({ envelope }: { envelope: ParsedEnvelope }) {
   if (envelope.kind === 'absent') {
     return (
       <EmptyState
@@ -175,117 +168,8 @@ function ItemsSection({ envelope }: { envelope: ParsedEnvelope }) {
   const items = envelope.envelope.items;
   const prices: PricedLineItem[] =
     envelope.kind === 'v2' ? envelope.envelope.prices : [];
-  const priceByItemId = new Map(prices.map((p) => [p.itemId, p]));
 
-  let subtotal = 0;
-  let unpriced = 0;
-  for (const item of items) {
-    const price = priceByItemId.get(item.id);
-    if (price && price.unitPrice !== null) {
-      subtotal += item.quantity * price.unitPrice;
-    } else {
-      unpriced++;
-    }
-  }
-
-  return (
-    <section>
-      <h2 className="mb-4 text-lg font-semibold">Billable items</h2>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No billable items were extracted from this report.
-        </p>
-      ) : (
-        <ul className="space-y-5">
-          {items.map((item) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              price={priceByItemId.get(item.id) ?? null}
-            />
-          ))}
-        </ul>
-      )}
-      <Separator className="my-6" />
-      <Totals subtotal={subtotal} unpriced={unpriced} />
-    </section>
-  );
-}
-
-function ItemRow({
-  item,
-  price,
-}: {
-  item: BillableItem;
-  price: PricedLineItem | null;
-}) {
-  const unitPrice = price?.unitPrice ?? null;
-  const lineTotal = formatLineTotal(item.quantity, unitPrice);
-  const isUnpriced = lineTotal === PRICE_UNAVAILABLE;
-  return (
-    <li className="grid gap-2 sm:grid-cols-[1fr_auto]">
-      <div>
-        <div className="font-medium">
-          <span className="text-muted-foreground">#{item.id} · </span>
-          {item.trade} — {item.action}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {item.scope} @ {item.location}
-        </div>
-        <div className="mt-1 text-sm italic text-muted-foreground">
-          “{item.sourceQuote}”
-          {item.pageHint ? (
-            <span className="not-italic"> ({item.pageHint})</span>
-          ) : null}
-        </div>
-        {price ? (
-          <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            <Badge variant="outline" className="mr-1">
-              {price.confidence}
-            </Badge>
-            <span>source: {price.source}</span>
-            {price.unitPrice === null && price.unavailableReason ? (
-              <span> — {price.unavailableReason}</span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-      <div className="text-right text-sm tabular-nums">
-        <div className="text-muted-foreground">
-          {item.quantity} ×{' '}
-          {unitPrice !== null ? formatCurrency(unitPrice) : '—'}
-        </div>
-        <div className={isUnpriced ? 'text-muted-foreground' : 'font-semibold'}>
-          {lineTotal}
-        </div>
-      </div>
-    </li>
-  );
-}
-
-function Totals({
-  subtotal,
-  unpriced,
-}: {
-  subtotal: number;
-  unpriced: number;
-}) {
-  return (
-    <div className="flex justify-end">
-      <div className="w-full max-w-xs space-y-1 text-sm tabular-nums">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Subtotal</span>
-          <span className="font-semibold">{formatCurrency(subtotal)}</span>
-        </div>
-        {unpriced > 0 ? (
-          <div className="flex justify-between text-muted-foreground">
-            <span>Unpriced items</span>
-            <span>{unpriced}</span>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
+  return <ItemsSection items={items} prices={prices} />;
 }
 
 function EmptyState({
