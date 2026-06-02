@@ -58,19 +58,45 @@ export const billableItemSchema = z.object({
   location: z.string().min(1),
 
   /**
-   * Quantity only when the inspector states one (e.g. "3 shingles"). Null
-   * otherwise — do not invent a quantity.
+   * Required count, derived from the inspector's wording:
+   *   - Specific digit ("3 shingles") or written-out number ("two outlets")
+   *     -> that number.
+   *   - "both" -> 2.
+   *   - "all" / "every" / "each" / "the remaining" -> 1 (the full set; the
+   *     contractor prices the whole assembly).
+   *   - Inspector says "install a GFCI receptacle" with no count word ->
+   *     1. A single defective item is still a billable line item, and the
+   *     count is implicitly 1.
+   * Better to overbill than underbill: if a count is unclear, prefer the
+   * higher defensible reading from the report. NEVER drop an item because
+   * the count is fuzzy. NEVER return null. NEVER invent a count that the
+   * report does not support.
    */
-  quantity: z.number().nullable(),
+  quantity: z.number().int().min(1),
 
   /**
    * Verbatim excerpt from the report that anchors this item. Required for
    * auditability — without this, the item is fabricated.
+   *
+   * Tightened in the accurate-extraction pass: must be at least 8 chars (a
+   * single common word like "replace" cannot anchor an item) and at most 500
+   * chars (anything longer is the model dumping whole paragraphs instead of
+   * the specific sentence). The model is also told to prefer the shortest
+   * verbatim excerpt that still names the defect and the action.
    */
-  sourceQuote: z.string().min(1),
+  sourceQuote: z.string().min(8).max(500),
 
-  /** e.g. "p. 14" when the page is present in the source text. */
-  pageHint: z.string().nullable(),
+  /**
+   * Page hint, e.g. "p. 14". Tightened to a strict format: literal "p.",
+   * optional whitespace, then digits. Anything that doesn't match (free
+   * prose, "page 14 of 32", "see above", etc.) must be null. The model is
+   * told NEVER to guess — if the source text doesn't show a page number,
+   * return null rather than inferring from layout.
+   */
+  pageHint: z
+    .string()
+    .regex(/^p\.\s*\d+$/)
+    .nullable(),
 });
 
 export type BillableItem = z.infer<typeof billableItemSchema>;

@@ -1,4 +1,5 @@
 import { createStep } from '@mastra/core/workflows';
+import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import {
   billableExtractionSchema,
@@ -75,6 +76,11 @@ export const auditItemsStep = createStep({
         ],
         {
           structuredOutput: { schema: billableExtractionSchema },
+          // Same RequestContext as Pass A so Pass B is attributed to the
+          // same run in any tool / memory / trace downstream.
+          requestContext: new RequestContext([
+            ['estimateRequestId', inputData.estimateRequestId],
+          ]),
         },
       );
 
