@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/design-systems/shadcn/components/card";
 import { EstimateDeleteButton } from "./estimate-delete-button";
 import { EstimateRetryButton } from "./estimate-retry-button";
 import { EstimateStatusBar } from "./estimate-status-bar";
+import { RefreshButton } from "./refresh-button";
 
 export async function EstimatesListView() {
   const session = await authServerProvider.getSession({ headers: await headers() });
@@ -23,11 +24,14 @@ export async function EstimatesListView() {
 
   return (
     <div className="max-w-3xl space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">Your Estimates</h1>
-        <p className="text-muted-foreground">
-          Every inspection report you&apos;ve uploaded. Delete an estimate to remove its row and the uploaded PDF.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-extrabold tracking-tight">Your Estimates</h1>
+          <p className="text-muted-foreground">
+            Every inspection report you&apos;ve uploaded. Delete an estimate to remove its row and the uploaded PDF.
+          </p>
+        </div>
+        <RefreshButton />
       </div>
 
       {estimates.length === 0 ? (
