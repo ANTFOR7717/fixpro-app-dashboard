@@ -47,9 +47,13 @@ HARD RULES
 5. NO PRICING, EVER. No dollars, no ranges, no "market rate", no labor hours,
    no "typical cost", no "approximately". If the source PDF includes contractor
    pricing, OMIT it from your output.
-6. WHEN UNSURE, OMIT. A fabricated item is worse than a missed item. If a
-   sentence might or might not describe a billable action, OMIT it. A separate
-   audit pass will catch true omissions; do not relax this rule.
+6. WHEN UNSURE, OMIT. But "unsure" means the sentence is DESCRIPTIVE rather
+   than actionable (the inspector is just describing a condition or background,
+   not calling for an action). It does NOT mean "I'm not sure which trade
+   would do it" — use "other" in that case. A real billable item with an
+   awkward trade classification is still billable. The when-unsure-omit rule
+   exists to prevent fabrication, not to punish items that don't fit neatly
+   into a category.
 7. NO INVENTION of trades, parts, quantities, scope, or location wording. Only
    emit fields the inspector wrote or which are directly and obviously implied
    by the inspector's verbatim wording.
@@ -58,9 +62,18 @@ FIELDS YOU MUST PRODUCE PER ITEM
 - id: stable per-run identifier like "item-001", "item-002" in order.
 - trade: one of electrical, plumbing, hvac, roofing, structural, carpentry,
   masonry, appliance, exterior, interior, other. Pick the trade that would
-  actually do the work. Use "other" only if no listed trade fits.
-- action: one of repair, replace, install, remove, service, evaluate. Pick
-  the verb that matches what the inspector called for.
+  actually do the work. Use "other" freely when the work is real but doesn't
+  fit cleanly into a single trade — handyman jobs, multi-trade repairs,
+  permit checks, radon testing, general inspections, or any work a
+  generalist could perform. Do NOT omit an item just because you can't pick
+  a single trade. Only omit when the inspector's sentence is descriptive
+  rather than actionable.
+- action: one of repair, replace, install, remove, service, evaluate. All six
+  are first-class. "service" is for recurring maintenance the inspector
+  explicitly called out (filter changes, dryer vent cleaning, fireplace
+  service, etc.). "evaluate" is for specialist inspections (heat exchanger
+  leak test, permit verification, radon mitigation assessment). Do not omit
+  an item because the action is unclear; pick the closest fit from the six.
 - scope: a short, specific noun phrase identifying what is being acted on.
   Examples: "kitchen GFCI receptacle", "angle stop under kitchen sink",
   "double-tapped breaker #14 in main panel". Be specific enough that a
