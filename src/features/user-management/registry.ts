@@ -1,4 +1,3 @@
-import { Users } from "lucide-react";
 import type { FeatureMetadata } from "@/lib/registry";
 
 export const userManagementMetadata: FeatureMetadata = {
@@ -8,7 +7,7 @@ export const userManagementMetadata: FeatureMetadata = {
     {
       href: "/admin/users",
       label: "Users",
-      icon: Users,
+      icon: "users",
       adminOnly: true,
       position: "sidebar",
     },

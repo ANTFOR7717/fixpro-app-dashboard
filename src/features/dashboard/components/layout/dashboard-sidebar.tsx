@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LogOut } from "lucide-react";
+import { DynamicIcon } from "lucide-react/dynamic";
 import type { NavItemList } from "@/config/types";
 
 import {
@@ -71,7 +72,7 @@ export function DashboardSidebar({
                     className="text-muted-foreground"
                   >
                     <Link href={item.href}>
-                      <item.icon />
+                      <DynamicIcon name={item.icon} />
                       <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -87,7 +88,7 @@ export function DashboardSidebar({
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton asChild tooltip={item.label}>
                 <Link href={item.href}>
-                  <item.icon className="h-4 w-4" />
+                  <DynamicIcon name={item.icon} className="h-4 w-4" />
                   <span>{item.label}</span>
                 </Link>
               </SidebarMenuButton>

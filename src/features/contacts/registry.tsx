@@ -1,4 +1,3 @@
-import { Users } from "lucide-react";
 import type { FeatureMetadata } from "@/lib/registry";
 import { ContactsView } from "./components/contacts-view";
 
@@ -9,7 +8,7 @@ export const contactsMetadata: FeatureMetadata = {
     {
       href: "/dashboard/contacts",
       label: "Contacts",
-      icon: Users,
+      icon: "users",
       position: "sidebar",
     },
   ],
