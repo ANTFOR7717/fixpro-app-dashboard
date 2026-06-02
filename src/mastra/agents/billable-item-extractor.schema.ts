@@ -109,10 +109,17 @@ export type BillableExtraction = z.infer<typeof billableExtractionSchema>;
 
 /**
  * Versioned envelope written to `estimate_requests.summary`. The downstream
- * pricer reads this column, detects the version, and prices each item.
+ * reader detects the version and renders accordingly.
+ *
+ * - v1: items only. Produced by the workflow before the pricing step landed.
+ *   Rows on disk created before this branch stay v1 forever.
+ * - v2: items + prices. Produced once the `price-items` step is in the
+ *   workflow. The report renders quantity × unitPrice = lineTotal and a
+ *   subtotal.
  */
 export const SUMMARY_ENVELOPE_KIND = 'billable-extraction' as const;
 export const SUMMARY_ENVELOPE_VERSION = 1 as const;
+export const SUMMARY_ENVELOPE_VERSION_2 = 2 as const;
 
 export const summaryEnvelopeSchema = z.object({
   kind: z.literal(SUMMARY_ENVELOPE_KIND),
@@ -121,3 +128,32 @@ export const summaryEnvelopeSchema = z.object({
 });
 
 export type SummaryEnvelope = z.infer<typeof summaryEnvelopeSchema>;
+
+/**
+ * Per-item priced line item, emitted by the pricer agent. `unitPrice: null`
+ * is the honest signal that the agent could not defend a number from its
+ * sources; the report renders "Price unavailable" in that case.
+ */
+export const pricedLineItemSchema = z.object({
+  /** Matches the `BillableItem.id` this price corresponds to ("item-001"). */
+  itemId: z.string().min(1),
+  /** Whole USD dollars. `null` means no defensible price. */
+  unitPrice: z.number().int().min(0).nullable(),
+  currency: z.literal('USD'),
+  confidence: z.enum(['high', 'medium', 'low']),
+  /** Short human label of where the number came from. NEVER a URL. */
+  source: z.string().min(1).max(120),
+  /** Populated when `unitPrice` is null. One-sentence reason. */
+  unavailableReason: z.string().min(1).max(280).nullable(),
+});
+
+export type PricedLineItem = z.infer<typeof pricedLineItemSchema>;
+
+export const summaryEnvelopeV2Schema = z.object({
+  kind: z.literal(SUMMARY_ENVELOPE_KIND),
+  version: z.literal(SUMMARY_ENVELOPE_VERSION_2),
+  items: z.array(billableItemSchema),
+  prices: z.array(pricedLineItemSchema),
+});
+
+export type SummaryEnvelopeV2 = z.infer<typeof summaryEnvelopeV2Schema>;
