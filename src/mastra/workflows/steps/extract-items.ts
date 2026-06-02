@@ -1,4 +1,5 @@
 import { createStep } from '@mastra/core/workflows';
+import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import {
   billableExtractionSchema,
@@ -55,6 +56,13 @@ export const extractItemsStep = createStep({
         ],
         {
           structuredOutput: { schema: billableExtractionSchema },
+          // Thread the run's identity into the agent so any tools / memory /
+          // tracing downstream can attribute work to the right estimate
+          // request. userId is not in this step's input schema today — when
+          // the caller surfaces it, add it here as a second tuple entry.
+          requestContext: new RequestContext([
+            ['estimateRequestId', inputData.estimateRequestId],
+          ]),
         },
       );
 

@@ -30,6 +30,18 @@ action and did not flag a defect, it is NOT a billable item. Background
 descriptions, condition observations, age statements, system overviews, and
 code-of-the-day commentary are NOT billable items.
 
+GROUNDING TESTS (apply to every candidate item before you emit it)
+A. The Ctrl-F test. Pretend the contractor never reads the report — they
+   only see your "sourceQuote". If a contractor reads just that one
+   string out of context, can they tell exactly what defect to fix and
+   where it is? If not, the quote is too vague or too long. Go back to the
+   report and pick a tighter, still-verbatim excerpt that names both the
+   defect and the action in the same sentence.
+B. The contractor-work-order test. The same "sourceQuote" string should be
+   pasteable into a contractor's work order as the job description, with
+   "scope" and "location" already filled in. If a contractor would scratch
+   their head at the quote, the item is not ready to emit.
+
 HARD RULES
 1. GROUNDED ONLY. Every emitted item must quote the inspector's exact wording
    in "sourceQuote". No paraphrase, no merging of separate sentences, no
@@ -80,12 +92,36 @@ FIELDS YOU MUST PRODUCE PER ITEM
   contractor knows exactly what to quote.
 - location: verbatim location language from the report. e.g. "Kitchen",
   "Roof — north slope", "Basement — northeast corner".
-- quantity: only when the inspector states one (e.g. "3 shingles", "two
-  outlets"). Otherwise null. NEVER invent a quantity.
+- quantity: REQUIRED. Count derived from the inspector's wording. Apply
+  these rules in order:
+    1. Specific digit ("3 shingles", "20% of shingles" -> 20): that number.
+    2. Written-out number ("two outlets", "three GFCI receptacles"): that
+       number.
+    3. "both" -> 2. (both is obviously 2.)
+    4. "all" / "every" / "each" / "the remaining" -> 1. The inspector
+       means the whole set; the contractor prices the full assembly. The
+       item is billable; do not drop it.
+    5. No count word at all ("install a GFCI receptacle", "replace the
+       angle stop"): 1. A single defective item is still a billable line
+       item.
+  Better to overbill than underbill: if the count is unclear, prefer the
+  higher defensible reading the report supports. NEVER return null.
+  NEVER invent a count the report does not support. NEVER drop an item
+  because the count is fuzzy.
 - sourceQuote: a verbatim excerpt from the report that anchors this item.
+  Must be between 8 and 500 characters. Pick the SHORTEST verbatim excerpt
+  that still names both the defect and the action in the same sentence
+  (the Ctrl-F test). If the only way to anchor an item is to quote a full
+  paragraph, omit the item. If the inspector's wording is genuinely that
+  verbose and the defect is in one sentence inside that paragraph, quote
+  just that sentence. Quote the inspector, not your own summary.
   Required. If you cannot supply one, omit the item entirely.
-- pageHint: e.g. "p. 14" when a page number is present in the source text.
-  Otherwise null.
+- pageHint: page number in the strict format "p. 14" (literal "p.",
+  optional whitespace, then digits). Copy it from the page header in the
+  source text. NEVER guess — if the source text does not show a page
+  number for the section, return null. Do not infer from layout, do not
+  use "page 14 of 32", do not use free prose. Null is correct when there
+  is no page number to copy verbatim.
 
 OUTPUT FORMAT
 Return JSON matching the provided structured-output schema exactly. The schema

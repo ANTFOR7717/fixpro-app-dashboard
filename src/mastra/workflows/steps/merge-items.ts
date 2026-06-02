@@ -47,20 +47,30 @@ export const mergeItemsStep = createStep({
     estimateRequestId: z.string(),
     items: z.array(billableItemSchema),
   }),
-  execute: async ({ inputData }) => {
+  execute: async ({ inputData, mastra }) => {
     const seenKeys = new Set<string>();
     const seenQuotes = new Set<string>();
     const merged: BillableItem[] = [];
+    // Extraction-quality counters — logged once at the end of the step so we
+    // can spot model regressions without changing the workflow shape.
+    let droppedBySourceQuote = 0;
+    let droppedByStructuralKey = 0;
 
     for (const it of [...inputData.items, ...inputData.auditItems]) {
       // Drop true duplicates anchored on the same inspector quote. Earlier
       // occurrence wins, so Pass A items take precedence.
       const qKey = normQuote(it.sourceQuote);
-      if (qKey && seenQuotes.has(qKey)) continue;
+      if (qKey && seenQuotes.has(qKey)) {
+        droppedBySourceQuote++;
+        continue;
+      }
       // Drop duplicates with the same (trade, action, scope, location) even
       // when the quote differs (model paraphrasing across passes).
       const kKey = normKey(it);
-      if (seenKeys.has(kKey)) continue;
+      if (seenKeys.has(kKey)) {
+        droppedByStructuralKey++;
+        continue;
+      }
       if (qKey) seenQuotes.add(qKey);
       seenKeys.add(kKey);
       merged.push(it);
@@ -70,6 +80,16 @@ export const mergeItemsStep = createStep({
       ...it,
       id: `item-${pad3(idx + 1)}`,
     }));
+
+    mastra.getLogger().info('[extraction-quality]', {
+      estimateRequestId: inputData.estimateRequestId,
+      passACount: inputData.items.length,
+      auditCount: inputData.auditItems.length,
+      droppedBySourceQuote,
+      droppedByStructuralKey,
+      auditFailed: inputData.auditFailed,
+      mergedCount: renumbered.length,
+    });
 
     return {
       estimateRequestId: inputData.estimateRequestId,
