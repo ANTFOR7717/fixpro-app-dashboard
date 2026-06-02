@@ -21,10 +21,12 @@ export const extractItemsStep = createStep({
   inputSchema: z.object({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
+    zipCode: z.string(),
   }),
   outputSchema: z.object({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
+    zipCode: z.string(),
     items: z.array(billableItemSchema),
     failed: z.boolean(),
     errorMessage: z.string().nullable(),
@@ -72,6 +74,7 @@ export const extractItemsStep = createStep({
         return {
           estimateRequestId: inputData.estimateRequestId,
           fileUrl: inputData.fileUrl,
+          zipCode: inputData.zipCode,
           items: [],
           failed: true,
           errorMessage: 'AI returned malformed extraction. Please retry.',
@@ -81,6 +84,7 @@ export const extractItemsStep = createStep({
       return {
         estimateRequestId: inputData.estimateRequestId,
         fileUrl: inputData.fileUrl,
+        zipCode: inputData.zipCode,
         items: extraction.items,
         failed: false,
         errorMessage: null,
@@ -90,6 +94,7 @@ export const extractItemsStep = createStep({
       return {
         estimateRequestId: inputData.estimateRequestId,
         fileUrl: inputData.fileUrl,
+        zipCode: inputData.zipCode,
         items: [],
         failed: true,
         errorMessage: classifyError(e),

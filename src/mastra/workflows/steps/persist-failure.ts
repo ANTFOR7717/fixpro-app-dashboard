@@ -14,10 +14,13 @@ export const persistFailureStep = createStep({
   id: 'persist-failure',
   // Mirrors extract-items' output shape — only `estimateRequestId` and
   // `errorMessage` are actually used here, but matching the shape keeps the
-  // branch wiring straightforward.
+  // branch wiring straightforward. `zipCode` is in the shape because the
+  // upstream step carries it for the success path; the failure path simply
+  // ignores it.
   inputSchema: z.object({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
+    zipCode: z.string(),
     items: z.array(billableItemSchema),
     failed: z.boolean(),
     errorMessage: z.string().nullable(),
