@@ -1,15 +1,9 @@
 import { Settings } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/design-systems/shadcn/components/card";
-import { Badge } from "@/design-systems/shadcn/components/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/design-systems/shadcn/components/card";
 import { Button } from "@/design-systems/shadcn/components/button";
 import Link from "next/link";
 import { featureRegistry } from "@/config/features-index";
+import { RefreshButton } from "@/features/estimate/components/refresh-button";
 
 export default function DashboardOverview() {
   const quickActions = featureRegistry.getQuickActions();
@@ -19,14 +13,17 @@ export default function DashboardOverview() {
     <div className="flex flex-col gap-4 p-4 md:p-6">
       {/* Quick Actions */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Quick Actions
-          </CardTitle>
-          <CardDescription>
-            Get started with common tasks and explore the platform features
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Quick Actions
+            </CardTitle>
+            <CardDescription>
+              Get started with common tasks and explore the platform features
+            </CardDescription>
+          </div>
+          <RefreshButton />
         </CardHeader>
         <CardContent>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
