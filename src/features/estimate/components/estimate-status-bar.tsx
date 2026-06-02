@@ -1,8 +1,9 @@
+"use client";
+
 import type { EstimateStatus } from '@/features/estimate/db/schema';
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@/design-systems/shadcn/components/tooltip';
 import { cn } from '@/lib/utils';
@@ -68,60 +69,58 @@ export function EstimateStatusBar({ status, errorMessage, className }: EstimateS
   const isActive = status === 'processing';
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div
-        className={cn('flex items-center gap-1 w-full max-w-[180px]', className)}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={STAGES.length}
-        aria-valuenow={isFailed ? 0 : Math.max(litIndex, 1)}
-        aria-label={`Estimate status: ${status}`}
-      >
-        {STAGES.map((stage, i) => {
-          // Lit = all stages up to and including litIndex.
-          const lit = !isFailed && i <= litIndex;
-          // Active = currently in progress (segment is animating).
-          const active = isActive && i === litIndex;
-          // Failed segment = the second segment (index 1) shown red.
-          const failed = isFailed && i === 1;
+    <div
+      className={cn('flex items-center gap-1.5 w-[180px] shrink-0', className)}
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={STAGES.length}
+      aria-valuenow={isFailed ? 0 : Math.max(litIndex, 1)}
+      aria-label={`Estimate status: ${status}`}
+    >
+      {STAGES.map((stage, i) => {
+        // Lit = all stages up to and including litIndex.
+        const lit = !isFailed && i <= litIndex;
+        // Active = currently in progress (segment is animating).
+        const active = isActive && i === litIndex;
+        // Failed segment = the second segment (index 1) shown red.
+        const failed = isFailed && i === 1;
 
-          const tooltipText = failed
-            ? errorMessage ?? 'Processing failed.'
-            : stage.description;
+        const tooltipText = failed
+          ? errorMessage ?? 'Processing failed.'
+          : stage.description;
 
-          return (
-            <Tooltip key={stage.id}>
-              <TooltipTrigger asChild>
-                <div
-                  className={cn(
-                    'h-1.5 flex-1 rounded-full transition-colors',
-                    // Lit
-                    lit && !failed && 'bg-primary',
-                    // Active (pulsing)
-                    active && 'bg-primary animate-pulse',
-                    // Failed
-                    failed && 'bg-destructive',
-                    // Not yet reached
-                    !lit && !failed && !active && 'bg-muted',
-                  )}
-                />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                <div className="font-medium">
-                  {stage.label}
-                  {active && ' \u00b7 in progress'}
-                  {failed && ' \u00b7 failed'}
-                  {lit && !active && !failed && ' \u2713'}
-                </div>
-                <div className="text-muted-foreground max-w-[220px]">
-                  {tooltipText}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </div>
-    </TooltipProvider>
+        return (
+          <Tooltip key={stage.id}>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  'h-2 flex-1 min-w-0 rounded-full transition-colors cursor-default',
+                  // Lit
+                  lit && !failed && 'bg-primary',
+                  // Active (pulsing)
+                  active && 'bg-primary animate-pulse',
+                  // Failed
+                  failed && 'bg-destructive',
+                  // Not yet reached — visible neutral track
+                  !lit && !failed && !active && 'bg-muted-foreground/25',
+                )}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              <div className="font-medium">
+                {stage.label}
+                {active && ' \u00b7 in progress'}
+                {failed && ' \u00b7 failed'}
+                {lit && !active && !failed && ' \u2713'}
+              </div>
+              <div className="text-muted-foreground max-w-[220px]">
+                {tooltipText}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </div>
   );
 }
 
