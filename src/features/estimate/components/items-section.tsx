@@ -31,16 +31,17 @@ interface ItemsSectionProps {
  *     label + unavailable-reason annotation on each line.
  *
  * Toggle state is intentionally per-render and not persisted. Both toggles
- * default to ON so the report still renders auditable evidence by default;
- * users can collapse to a clean invoice-style view when sharing.
+ * default to OFF so the report reads as a clean invoice by default; users
+ * can opt into auditable evidence (source quote, pricing rationale) when
+ * needed.
  *
  * This is a client component because the toggles need local state; the
  * parent `EstimateReport` stays a server component and just passes the
  * already-parsed envelope contents through.
  */
 export function ItemsSection({ items, prices }: ItemsSectionProps) {
-  const [showSource, setShowSource] = useState(true);
-  const [showEvidence, setShowEvidence] = useState(true);
+  const [showSource, setShowSource] = useState(false);
+  const [showEvidence, setShowEvidence] = useState(false);
 
   const priceByItemId = new Map(prices.map((p) => [p.itemId, p]));
 
