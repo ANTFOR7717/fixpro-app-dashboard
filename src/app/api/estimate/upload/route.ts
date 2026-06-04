@@ -24,9 +24,10 @@ export async function POST(request: Request): Promise<NextResponse> {
           tokenPayload: JSON.stringify({ userId: session.user.id }),
         };
       },
-      onUploadCompleted: async ({ blob }) => {
-        console.log("Estimate blob uploaded:", blob.url);
-      },
+      // onUploadCompleted intentionally omitted: the DB row is written by
+      // uploadEstimatePdfAction after the client upload() resolves, so we do
+      // not need a Vercel-side webhook. Including it would require a
+      // publicly reachable callbackUrl, which breaks local dev.
     });
 
     return NextResponse.json(jsonResponse);
