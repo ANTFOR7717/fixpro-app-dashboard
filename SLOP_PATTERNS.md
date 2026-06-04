@@ -65,6 +65,44 @@ path already awaits. If a server-side side effect is genuinely
 required *and* the primary path cannot perform it, justify the
 receiver in the PR description by naming the side effect.
 
+**Bad:**
+
+```ts path=null start=null
+// Client awaits upload() and immediately tells the server.
+const { url } = await upload(key, file, { handleUploadUrl: "/api/x" });
+await recordUploadAction({ url });
+
+// Route handler ALSO observes the same event — and does nothing useful.
+export async function POST(req: Request) {
+  return handleUpload({
+    body: await req.json(),
+    request: req,
+    onBeforeGenerateToken: async () => ({ allowedContentTypes: ["application/pdf"] }),
+    onUploadCompleted: async ({ blob }) => {
+      console.log("uploaded:", blob.url); // re-reports what the client already knows
+    },
+  });
+}
+```
+
+**Good:**
+
+```ts path=null start=null
+// One observer of the event — the one with a real consumer.
+const { url } = await upload(key, file, { handleUploadUrl: "/api/x" });
+await recordUploadAction({ url });
+
+export async function POST(req: Request) {
+  return handleUpload({
+    body: await req.json(),
+    request: req,
+    onBeforeGenerateToken: async () => ({ allowedContentTypes: ["application/pdf"] }),
+    // no onUploadCompleted: nothing for the server to do that the
+    // client's post-resolve action does not already do.
+  });
+}
+```
+
 **Example (this repo):** `onUploadCompleted` on the Vercel Blob
 `handleUpload` route. The client `upload()` promise already resolved
 on completion and the Server Action wrote the DB row from that
@@ -103,6 +141,57 @@ side effects → return. Each named responsibility beyond coordination
 lives in a `lib/` helper in the same feature slice. If a body grows
 past ~40 lines, extract before adding more.
 
+**Bad:**
+
+```ts path=null start=null
+export async function createOrderAction(_prev: State, fd: FormData) {
+  const session = await getSession();
+  if (!session) throw new Error("UNAUTHENTICATED");
+
+  const schema = z.object({ sku: z.string(), qty: z.string() });
+  const raw = Object.fromEntries(fd.entries());
+  const parsed = schema.safeParse({ sku: raw.sku, qty: raw.qty });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const { stripe } = await import("@/lib/stripe");
+  const charge = await stripe.charges.create({ /* … */ });
+
+  const { contactsTable } = await import("@/features/contacts/db/schema");
+  await db.insert(contactsTable).values({ /* … */ });
+
+  const [row] = await db.insert(ordersTable).values({ /* … */ }).returning();
+
+  after(async () => {
+    try { await mastra.getWorkflow("fulfill").createRun().start({ /* … */ }); }
+    catch (e) { await db.update(ordersTable).set({ status: "failed" }); }
+    revalidatePath("/dashboard");
+  });
+
+  return { ok: true };
+}
+```
+
+**Good:**
+
+```ts path=null start=null
+export async function createOrderAction(
+  _prev: ActionResult | null,
+  fd: FormData,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  if (!session.ok) return session.error;
+
+  const parsed = parseOrderInput(fd);
+  if (!parsed.ok) return { success: false, error: parsed.error };
+
+  await chargeOrder({ userId: session.user.id, ...parsed.data });
+  const order = await insertOrder({ userId: session.user.id, ...parsed.data });
+  triggerFulfillment({ orderId: order.id });
+
+  return { success: true };
+}
+```
+
 **Example (this repo):** `uploadEstimatePdfAction` previously inlined
 auth, MIME check, Zod schema declaration, contact persistence, blob
 `put()`, row insert, and a Mastra `after()` block. Broken apart in
@@ -134,6 +223,40 @@ silent bug.
 **Rule:** A block of code that appears verbatim in two call sites with
 only parameter differences must be a helper. No second copy.
 
+**Bad:**
+
+```ts path=null start=null
+// site A
+after(async () => {
+  try {
+    const run = await mastra.getWorkflow("summarize").createRun();
+    await run.start({ inputData: { id: rowA.id, url: rowA.fileUrl } });
+  } catch (e) {
+    await db.update(t).set({ status: "failed" }).where(and(eq(t.id, rowA.id), ne(t.status, "completed")));
+  }
+  revalidatePath("/dashboard");
+});
+
+// site B — same block, only id/url differ
+after(async () => {
+  try {
+    const run = await mastra.getWorkflow("summarize").createRun();
+    await run.start({ inputData: { id: rowB.id, url: rowB.fileUrl } });
+  } catch (e) {
+    await db.update(t).set({ status: "failed" }).where(and(eq(t.id, rowB.id), ne(t.status, "completed")));
+  }
+  revalidatePath("/dashboard");
+});
+```
+
+**Good:**
+
+```ts path=null start=null
+// One helper, two callers.
+triggerSummarize({ id: rowA.id, fileUrl: rowA.fileUrl });
+triggerSummarize({ id: rowB.id, fileUrl: rowB.fileUrl, errorLabel: "retry" });
+```
+
 **Example (this repo):** Identical `after(async () => { … mastra
 workflow … guarded fallback … revalidatePath('/dashboard') })` blocks
 in `uploadEstimatePdfAction` and `retryEstimateAction`. Collapsed into
@@ -161,6 +284,29 @@ the fallback string and disappear from logs.
 
 **Rule:** `catch (error)` plus `error instanceof Error ? error.message
 : <explicit fallback>`. No `any` on error paths.
+
+**Bad:**
+
+```ts path=null start=null
+try {
+  await doThing();
+} catch (error: any) {
+  return { success: false, error: error.message || "Failed." };
+}
+```
+
+**Good:**
+
+```ts path=null start=null
+try {
+  await doThing();
+} catch (error) {
+  return {
+    success: false,
+    error: error instanceof Error ? error.message : "Failed.",
+  };
+}
+```
 
 **Example (this repo):** Both `uploadEstimatePdfAction` and
 `retryEstimateAction` previously used `catch (error: any)`. Tightened
@@ -191,6 +337,31 @@ readers into thinking the dependency is conditional (M).
 bundle boundary, (b) the import is conditional and the conditional
 branch is rare, or (c) it breaks a real circular import. Otherwise,
 static `import` at the top of the file.
+
+**Bad:**
+
+```ts path=null start=null
+"use server";
+
+export async function saveContactAction(fd: FormData) {
+  const { contactsTable } = await import("@/features/contacts/db/schema");
+  const { put } = await import("@vercel/blob");
+  // … used unconditionally on every call
+}
+```
+
+**Good:**
+
+```ts path=null start=null
+"use server";
+
+import { contactsTable } from "@/features/contacts/db/schema";
+import { put } from "@vercel/blob";
+
+export async function saveContactAction(fd: FormData) {
+  // … dependencies declared at the top, visible to grep and the type checker.
+}
+```
 
 **Example (this repo):** `await import("@/features/contacts/db/schema")`
 and `await import("@vercel/blob")` inside `uploadEstimatePdfAction`.
