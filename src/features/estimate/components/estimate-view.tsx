@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, startTransition, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { uploadEstimatePdfAction } from "../api/actions";
 import { ContactPicker } from "@/features/contacts/components/contact-picker";
 import type { Contact } from "@/features/contacts/db/schema";
@@ -65,6 +66,7 @@ export function EstimateView({ contacts }: EstimateViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saveListingAsContact, setSaveListingAsContact] = useState(false);
   const [saveBuyerAsContact, setSaveBuyerAsContact] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [state, action] = useActionState(uploadEstimatePdfAction, null);
   const { register, setValue, handleSubmit, formState: { errors } } = useForm<z.infer<typeof estimateSchema>>({
     resolver: zodResolver(estimateSchema),
@@ -82,22 +84,37 @@ export function EstimateView({ contacts }: EstimateViewProps) {
     }
   });
 
-  const onSubmit = (data: z.infer<typeof estimateSchema>) => {
-    const formData = new FormData();
+  const onSubmit = async (data: z.infer<typeof estimateSchema>) => {
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
 
-    formData.append("file", file);
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
+    setUploadError(null);
 
+    let blobUrl: string;
+    try {
+      const sanitized = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const result = await upload(`estimates/${Date.now()}-${sanitized}`, file, {
+        access: "public",
+        contentType: "application/pdf",
+        handleUploadUrl: "/api/estimate/upload",
+      });
+      blobUrl = result.url;
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Upload failed.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("blobUrl", blobUrl);
+    formData.append("fileName", file.name);
+    formData.append("fileSize", String(file.size));
+    for (const [key, value] of Object.entries(data)) {
+      formData.append(key, value);
+    }
     if (saveListingAsContact) formData.append("saveListingAsContact", "1");
     if (saveBuyerAsContact) formData.append("saveBuyerAsContact", "1");
 
-    startTransition(() => {
-      action(formData);
-    });
+    startTransition(() => action(formData));
   };
 
   return (
@@ -109,6 +126,7 @@ export function EstimateView({ contacts }: EstimateViewProps) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <FormError message={state?.error || ""} />
+        <FormError message={uploadError ?? ""} />
         <FormSuccess message={state?.message || ""} />
 
         <Card>
