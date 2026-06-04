@@ -381,6 +381,10 @@ Replaced with static imports inside `lib/contacts.ts` in commit
 5. List 3–4 **detection cues** a reviewer can apply mechanically.
 6. State **why it is slop** in one paragraph that maps to the tags.
 7. State the **rule** as a single forward-looking sentence.
-8. Optionally include an **Example (this repo)** subsection citing the
+8. Include a **Bad** code block and a **Good** code block (both with
+   `path=null start=null`) that show the pattern and its correct
+   factoring in language-agnostic-enough form to apply outside the
+   specific incident.
+9. Optionally include an **Example (this repo)** subsection citing the
    commit that introduced or removed the instance. Never let the
    example overtake the definition.
