@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, startTransition, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import { uploadEstimatePdfAction } from "../api/actions";
 import { ContactPicker } from "@/features/contacts/components/contact-picker";
 import type { Contact } from "@/features/contacts/db/schema";
@@ -13,10 +15,8 @@ import { Input } from "@/design-systems/shadcn/components/input";
 import { Label } from "@/design-systems/shadcn/components/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/design-systems/shadcn/components/select";
 import { Card, CardContent } from "@/design-systems/shadcn/components/card";
-import { FormError, FormSuccess } from "@/design-systems/shadcn/components/form-messages";
 import { Button } from "@/design-systems/shadcn/components/button";
 import { Separator } from "@/design-systems/shadcn/components/separator";
-import { useFormStatus } from "react-dom";
 
 const TIMEFRAME_OPTIONS = [
   "ASAP (24-48 hours)",
@@ -38,12 +38,12 @@ const estimateSchema = z.object({
   timeframe: z.enum(TIMEFRAME_OPTIONS, { message: "Please select a timeframe" }),
 });
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <Button
       type="submit"
       disabled={pending}
+      aria-busy={pending}
       className="w-full h-12 text-lg font-semibold"
     >
       {pending ? (
@@ -63,11 +63,12 @@ interface EstimateViewProps {
 }
 
 export function EstimateView({ contacts }: EstimateViewProps) {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const [saveListingAsContact, setSaveListingAsContact] = useState(false);
   const [saveBuyerAsContact, setSaveBuyerAsContact] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [state, action] = useActionState(uploadEstimatePdfAction, null);
   const { register, setValue, handleSubmit, formState: { errors } } = useForm<z.infer<typeof estimateSchema>>({
     resolver: zodResolver(estimateSchema),
     defaultValues: {
@@ -85,36 +86,54 @@ export function EstimateView({ contacts }: EstimateViewProps) {
   });
 
   const onSubmit = async (data: z.infer<typeof estimateSchema>) => {
+    // Synchronous re-entrancy guard. Even if React batching delays the
+    // state update, the ref blocks the second click immediately.
+    if (submittingRef.current) return;
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
 
-    setUploadError(null);
+    submittingRef.current = true;
+    setSubmitting(true);
 
-    let blobUrl: string;
+    const toastId = toast.loading("Uploading estimate...");
     try {
-      const sanitized = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-      const result = await upload(`estimates/${Date.now()}-${sanitized}`, file, {
-        access: "public",
-        contentType: "application/pdf",
-        handleUploadUrl: "/api/estimate/upload",
-      });
-      blobUrl = result.url;
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Upload failed.");
-      return;
-    }
+      let blobUrl: string;
+      try {
+        const sanitized = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const result = await upload(`estimates/${Date.now()}-${sanitized}`, file, {
+          access: "public",
+          contentType: "application/pdf",
+          handleUploadUrl: "/api/estimate/upload",
+        });
+        blobUrl = result.url;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Upload failed.", { id: toastId });
+        return;
+      }
 
-    const formData = new FormData();
-    formData.append("blobUrl", blobUrl);
-    formData.append("fileName", file.name);
-    formData.append("fileSize", String(file.size));
-    for (const [key, value] of Object.entries(data)) {
-      formData.append(key, value);
-    }
-    if (saveListingAsContact) formData.append("saveListingAsContact", "1");
-    if (saveBuyerAsContact) formData.append("saveBuyerAsContact", "1");
+      const formData = new FormData();
+      formData.append("blobUrl", blobUrl);
+      formData.append("fileName", file.name);
+      formData.append("fileSize", String(file.size));
+      for (const [key, value] of Object.entries(data)) {
+        formData.append(key, value);
+      }
+      if (saveListingAsContact) formData.append("saveListingAsContact", "1");
+      if (saveBuyerAsContact) formData.append("saveBuyerAsContact", "1");
 
-    startTransition(() => action(formData));
+      const result = await uploadEstimatePdfAction(null, formData);
+      if (!result.success) {
+        toast.error(result.error ?? "Failed to upload file.", { id: toastId });
+        return;
+      }
+
+      toast.success(result.message ?? "Upload complete! Your estimate is processing.", { id: toastId });
+      router.replace("/dashboard");
+      router.refresh();
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -125,10 +144,6 @@ export function EstimateView({ contacts }: EstimateViewProps) {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <FormError message={state?.error || ""} />
-        <FormError message={uploadError ?? ""} />
-        <FormSuccess message={state?.message || ""} />
-
         <Card>
           <CardContent className="pt-6 space-y-8">
             <div className="space-y-6">
@@ -278,7 +293,7 @@ export function EstimateView({ contacts }: EstimateViewProps) {
           />
         </div>
 
-        <SubmitButton />
+        <SubmitButton pending={submitting} />
       </form>
     </div>
   );
