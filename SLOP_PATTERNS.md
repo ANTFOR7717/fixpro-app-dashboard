@@ -1,174 +1,215 @@
 # SLOP_PATTERNS.md
 
-A running catalog of anti-patterns ("slop") that have been added to this
-project by AI agents and removed after review. Each entry must include:
-the pattern, why it is slop, where it appeared, and the rule that prevents
-it from coming back.
+A catalog of **named anti-patterns** to watch for in this codebase and
+in any code an AI agent proposes. Each entry is named like a design
+pattern so reviewers can call it out by name in PRs:
 
-The bar: **if code does not contribute to the feature's behavior, it does
-not belong in the feature.** Logging that nobody reads, callbacks that
-nobody depends on, abstractions that have no second caller, fields that
-nobody validates against — all slop.
+> "This is a Phantom Receiver — drop it."
 
----
+Entries describe the pattern at a level general enough to recognize in
+unrelated code. The specific incident that produced the entry lives
+only as an Example, never as the definition.
 
-## Classification
+## The bar
 
-Slop is classified by the kind of waste it produces:
+If code does not contribute to the feature's behavior, it does not
+belong in the feature. Wrappers without callers, callbacks nobody
+depends on, abstractions invented for a hypothetical second use,
+silent error paths — all slop.
 
-- **D — Dead code.** Code that executes but whose output is unused, or
-  code that never executes.
-- **R — Redundant signal.** Code that re-derives or re-reports
-  information another code path already produces authoritatively.
-- **C — Ceremony.** Wrappers, indirection, or "structure" added without a
-  caller that justifies it.
-- **S — Speculative.** Code added for a future requirement that does not
-  exist yet.
-- **U — Unsafe default.** Defaults that mask real failures (silent
-  catches, log-and-continue, optional fields treated as guaranteed).
-- **M — Misleading naming.** Names that suggest behavior the code does
-  not implement.
+## Classification tags
 
-A single pattern can carry more than one tag.
+Each anti-pattern carries one or more tags:
 
----
+- **D — Dead Path.** Executes but no consumer reads its effect.
+- **R — Redundant Signal.** Re-derives information another code path
+  already produces authoritatively.
+- **C — Ceremony.** Wrappers, indirection, or "structure" added
+  without a justifying caller.
+- **S — Speculative.** Built for a future requirement that does not
+  exist.
+- **U — Unsafe Default.** Defaults that hide failures (broad catches,
+  log-and-continue, optional treated as guaranteed).
+- **M — Misleading Name.** Names that imply behavior the code does
+  not perform.
+- **G — God Function.** One unit holds multiple unrelated
+  responsibilities.
 
-## Entries
+## Anti-patterns
 
-### SLOP-001 — `onUploadCompleted` handler that only logs
+### SLOP-001 — Phantom Receiver
 
-**Classification:** D, R
+**Tags:** D, R
 
-**Where:** `src/app/api/estimate/upload/route.ts` (`handleUpload`
-options), introduced in `feat/client-side-blob-upload` and removed in
+A handler, callback, webhook, listener, or subscriber that fires on an
+event that the caller already observes directly. The receiver's body
+either logs, no-ops, or recomputes a value the primary code path
+already has in hand.
+
+**Detection cues:**
+
+- Two code paths react to the same event; only one has a downstream
+  consumer.
+- The "secondary" path's body is mostly `console.log`, metrics-only,
+  or a TODO.
+- Removing the receiver leaves all feature behavior intact.
+- The receiver introduces an infrastructure requirement (public URL,
+  open port, additional env var) disproportionate to what it does.
+
+**Why it's slop:** It re-reports what is already known (R), runs code
+nobody consumes (D), and trades real infrastructure coupling for zero
+behavior.
+
+**Rule:** Do not add a second observer for an event the primary code
+path already awaits. If a server-side side effect is genuinely
+required *and* the primary path cannot perform it, justify the
+receiver in the PR description by naming the side effect.
+
+**Example (this repo):** `onUploadCompleted` on the Vercel Blob
+`handleUpload` route. The client `upload()` promise already resolved
+on completion and the Server Action wrote the DB row from that
+resolution. The webhook body was a `console.log`, and its presence
+required `VERCEL_BLOB_CALLBACK_URL`, breaking local dev. Removed in
 commit `540437a`.
 
-**What it looked like:**
+### SLOP-002 — God Action
 
-```ts path=null start=null
-onUploadCompleted: async ({ blob }) => {
-  console.log("Estimate blob uploaded:", blob.url);
-},
-```
+**Tags:** G, C, M
 
-**Why it is slop:**
+A Server Action (or any single entry-point function) that names one
+responsibility but performs many: authentication, input parsing,
+multi-table persistence, external I/O, background orchestration, and
+error shaping all inlined into one body. Helpers exist nowhere; the
+function grows linearly with every new requirement.
 
-- The client `upload()` promise already resolves only after the bytes are
-  stored at Vercel Blob, and the component immediately dispatches the
-  Server Action with the resulting `blobUrl`. The Server Action writes
-  the DB row with `status='uploaded'`, which is the authoritative
-  "upload completed" signal. The webhook re-reports information the
-  app already has (**R**).
-- The handler's body was a single `console.log` that nobody consumes
-  (**D**). Logging is not a feature.
-- It introduced a hard runtime requirement (`VERCEL_BLOB_CALLBACK_URL`
-  or a publicly reachable host) that broke local dev with
-  `onUploadCompleted provided but no callbackUrl could be determined`.
-  Hidden infrastructure coupling for zero behavior.
+**Detection cues:**
 
-**Rule to prevent regression:** Do not add Vercel Blob `onUploadCompleted`
-(or any webhook handler) unless there is a concrete server-side side
-effect that **cannot** be performed by the code path that already awaits
-`upload()`. "Logging" and "future analytics" do not qualify.
+- Body exceeds ~40 lines or spans more than one logical "phase."
+- The function's name describes only one of its responsibilities; the
+  rest are invisible from the call site.
+- Imports inside the body include the DB client, validation library,
+  blob/SDK clients, async orchestration primitives, and cache
+  revalidation calls all at once.
+- A reviewer can identify ≥3 distinct concerns without reading
+  closely.
 
----
+**Why it's slop:** The function's name lies about its scope (M), it
+accretes ceremony around each new concern (C), and it concentrates
+unrelated responsibilities into a single change-risk unit (G). The
+next edit either grows the monolith or rewrites it.
 
-### SLOP-002 — Monolithic Server Action mixing parsing, persistence, and orchestration
+**Rule:** Entry-point functions are **coordinators**: auth → parse →
+side effects → return. Each named responsibility beyond coordination
+lives in a `lib/` helper in the same feature slice. If a body grows
+past ~40 lines, extract before adding more.
 
-**Classification:** C, D, U, M
+**Example (this repo):** `uploadEstimatePdfAction` previously inlined
+auth, MIME check, Zod schema declaration, contact persistence, blob
+`put()`, row insert, and a Mastra `after()` block. Broken apart in
+commit `2ff0f02` into `lib/upload-input.ts`, `lib/contacts.ts`, and
+`lib/workflow.ts`.
 
-**Where:** `src/features/estimate/api/actions.ts` —
-`uploadEstimatePdfAction`. Existed prior to
-`feat/client-side-blob-upload`; broken apart into
-`src/features/estimate/lib/{upload-input,contacts,workflow}.ts` in
-commit `2ff0f02`.
+### SLOP-003 — Copy-Paste Orchestration
 
-**What it looked like:** a single ~120-line `async` function that:
+**Tags:** D, C
 
-```ts path=null start=null
-// 1. authenticated the session
-// 2. extracted the File and hand-checked the MIME
-// 3. declared a Zod schema inline and then manually re-mapped every
-//    key from Object.fromEntries(formData.entries()) back into safeParse
-//    one property at a time
-// 4. dynamically `await import("@/features/contacts/db/schema")`'d the
-//    contacts table to push 0–2 rows into a local array and insert them
-// 5. dynamically `await import("@vercel/blob")`'d put() and streamed
-//    the file
-// 6. inserted the estimate row
-// 7. inlined an `after(async () => { ... })` block that ran the Mastra
-//    workflow, logged on non-success, and had a guarded fallback
-//    db.update(...) — the *exact same* block was duplicated verbatim
-//    inside retryEstimateAction
-// 8. wrapped the whole thing in `} catch (error: any) {`
-```
+A nontrivial block — typically background work, error recovery, or
+notification logic — appears verbatim (or near-verbatim) in two or
+more call sites instead of behind a named helper. The duplicates are
+guaranteed to drift on the next edit; one site gets a fix and the
+other does not.
 
-**Why it is slop:**
+**Detection cues:**
 
-- **C — Ceremony with no factoring.** Six unrelated responsibilities
-  (auth, validation, contact persistence, blob I/O, row insert, async
-  orchestration) lived in one function. The function name promised
-  "upload a PDF"; the body did six things. None of the other 5
-  concerns were named.
-- **D — Duplication.** The `after(async () => { ... mastra workflow ...
-  guarded fallback ... revalidatePath('/dashboard') })` block was
-  copy-pasted verbatim into `retryEstimateAction`. Two copies of an
-  orchestration block guarantees drift on the next edit. Replaced by a
-  single `triggerSummarizeEstimate()` helper called from both sites.
-- **D — Inline schema re-mapping.** The action declared a Zod schema
-  and then wrote 10 lines spelling out `submitterRole: rawData.submitterRole,
-  listingAgentName: rawData.listingAgentName, ...`. `Object.fromEntries(
-  formData.entries())` is the natural input shape; the re-map produced
-  zero validation benefit and grew linearly with every new field.
-- **U — `catch (error: any)`.** Disabled type checking on the error
-  path and used `error.message || "..."` which silently degrades when
-  the thrown value is not an `Error`. Replaced with
-  `catch (error)` + `error instanceof Error ? error.message : "..."`
-  in the touched functions.
-- **U — Dynamic `await import(...)` for server-only modules.** The
-  contacts table and `@vercel/blob` were lazy-loaded for no benefit;
-  this is a Server Action, not a client bundle. The dynamic imports
-  hid dependencies from grep and from the type checker's reach.
-- **M — Function name lies.** `uploadEstimatePdfAction` implied a
-  single responsibility; behaviorally it was a `do-everything` action.
-  Renaming would not have fixed it — the function had to be cut apart.
+- Searching for a distinctive substring of the block returns ≥2 hits.
+- The duplicate sites differ only in 1–2 parameters (an id, a label,
+  a path).
+- The block has its own try/catch and side effects; it is not a
+  trivial one-liner.
 
-**Authoritative alternative (now in the codebase):**
+**Why it's slop:** Each copy is dead weight at the second site (D) and
+adds ceremony to every future edit (C). Drift between copies becomes a
+silent bug.
 
-- `src/features/estimate/lib/upload-input.ts` — `parseUploadInput(formData)`
-  returns a discriminated `{ ok: true, data, ...flags } | { ok: false,
-  error }`. No inline re-mapping.
-- `src/features/estimate/lib/contacts.ts` — `saveSelectedContacts(...)`
-  with a static import of `contactsTable`.
-- `src/features/estimate/lib/workflow.ts` — `triggerSummarizeEstimate({
-  estimateRequestId, fileUrl, errorLabel? })` collapses both call
-  sites' `after()` blocks.
-- `src/features/estimate/api/actions.ts` — `uploadEstimatePdfAction`
-  and `retryEstimateAction` are now thin coordinators: auth → parse →
-  side effects → return.
+**Rule:** A block of code that appears verbatim in two call sites with
+only parameter differences must be a helper. No second copy.
 
-**Rule to prevent regression:** Server Actions are *coordinators*, not
-workbenches. If an action's body exceeds ~40 lines, or names more than
-one responsibility (parsing **and** persistence **and** orchestration),
-the extra responsibilities must live in `lib/` helpers in the same
-feature slice. A block of code that appears verbatim in two actions
-must be a helper, not a copy. `catch (error: any)` and dynamic
-`await import(...)` for server-only modules are not permitted.
+**Example (this repo):** Identical `after(async () => { … mastra
+workflow … guarded fallback … revalidatePath('/dashboard') })` blocks
+in `uploadEstimatePdfAction` and `retryEstimateAction`. Collapsed into
+`triggerSummarizeEstimate()` in commit `2ff0f02`.
 
----
+### SLOP-004 — Type-Erased Catch
+
+**Tags:** U
+
+`catch (e: any)` (or `catch (e)` followed by `e.message` access
+without a type guard) on the failure path. The error shape is assumed
+rather than discriminated; non-`Error` throws degrade silently to
+default strings, and the type checker stops protecting the recovery
+path.
+
+**Detection cues:**
+
+- `catch (… : any)` anywhere in the diff.
+- `error.message || "fallback"` without an `instanceof Error` guard.
+- The catch body references properties that exist only on `Error`.
+
+**Why it's slop:** Disables type checking exactly where the program is
+already in a degraded state (U). Real failure modes get coerced into
+the fallback string and disappear from logs.
+
+**Rule:** `catch (error)` plus `error instanceof Error ? error.message
+: <explicit fallback>`. No `any` on error paths.
+
+**Example (this repo):** Both `uploadEstimatePdfAction` and
+`retryEstimateAction` previously used `catch (error: any)`. Tightened
+in commit `2ff0f02`. (`deleteEstimateAction` still uses the pattern
+and is queued for the next pass.)
+
+### SLOP-005 — Lazy-Loaded Server Module
+
+**Tags:** C, M
+
+`await import("…")` used for a module that is server-only and has no
+runtime cost reason to be lazy: no client bundle size to protect, no
+conditional code-splitting, no circular-import workaround. The
+dynamic import hides the dependency from `grep`, from the type
+checker's reach at the call site, and from build-time analysis.
+
+**Detection cues:**
+
+- `await import(...)` inside a Server Action, route handler, or other
+  server-only module.
+- The imported symbol is used unconditionally on every call.
+- The same symbol is statically imported elsewhere in the codebase.
+
+**Why it's slop:** Costs ceremony (C) for no payoff and misleads
+readers into thinking the dependency is conditional (M).
+
+**Rule:** Use `await import(...)` only when (a) the target is a client
+bundle boundary, (b) the import is conditional and the conditional
+branch is rare, or (c) it breaks a real circular import. Otherwise,
+static `import` at the top of the file.
+
+**Example (this repo):** `await import("@/features/contacts/db/schema")`
+and `await import("@vercel/blob")` inside `uploadEstimatePdfAction`.
+Replaced with static imports inside `lib/contacts.ts` in commit
+`2ff0f02`.
 
 ## How to add an entry
 
-When a reviewer flags slop:
-
 1. Assign the next `SLOP-NNN` id.
-2. Title it with the offending symbol or pattern, not a vague phrase.
-3. Tag it from the classification list (combine tags when more than one
+2. **Give the pattern a name** (two or three words, capitalized like a
+   design pattern).
+3. Tag from the classification list (combine tags when more than one
    applies).
-4. Quote the offending snippet with `path=null start=null` so it is not
-   indexed as live source.
-5. State the authoritative alternative that already exists in the
-   codebase (or note that no alternative was needed because the
-   requirement itself was invented).
-6. Write a one-sentence forward rule that an AI agent can apply
-   mechanically on the next review.
+4. Write the **definition** at a level that lets a reviewer recognize
+   the pattern in unrelated code. The definition must not depend on
+   the specific incident.
+5. List 3–4 **detection cues** a reviewer can apply mechanically.
+6. State **why it is slop** in one paragraph that maps to the tags.
+7. State the **rule** as a single forward-looking sentence.
+8. Optionally include an **Example (this repo)** subsection citing the
+   commit that introduced or removed the instance. Never let the
+   example overtake the definition.
