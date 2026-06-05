@@ -95,72 +95,105 @@ export function formatTradeLabel(trade: string): string {
 }
 
 /**
- * Professional line-item title for an invoice/estimate row.
+ * Renderer-side noun-phrase title for a billable item.
  *
- * Standard trade-invoice convention is `<Action verb> <specific scope>`,
- * with location and quantity surfaced as secondary metadata — not
- * `<trade> — <action>` (e.g. "interior — replace"), which reads like a
- * tracking tag instead of a description of the work.
+ * Post-PR #13 the model emits `scope` as a Title-Cased noun phrase
+ * (e.g. "Damaged Drywall Section", "GFCI Receptacle"). The renderer
+ * does NOT invent a verb prefix and does NOT append a disambiguation
+ * suffix — those were the v1 plan's rules and they drifted from the
+ * prototype. The renderer's job is consistent Title Casing with an
+ * acronym allowlist so a downcased "gfci" or "nec" still renders
+ * correctly.
  *
- * Action verbs are normalized to a professional imperative phrase:
- *   - repair   -> "Repair"
- *   - replace  -> "Replace"
- *   - install  -> "Install"
- *   - remove   -> "Remove"
- *   - service  -> "Service"
- *   - evaluate -> "Inspect & evaluate"
- *
- * The scope is the inspector-grounded noun phrase from the extractor
- * ("kitchen GFCI receptacle", "double-tapped breaker #14", ...), so we
- * just lower-case its first character when joining to keep sentence-case
- * flow. We deliberately don't append the location here — the report
- * renders that on its own muted line so the title stays scannable.
+ * Acronyms are intentionally a small explicit set: every entry is one
+ * the extractor prompt tells the model to use in the noun phrase.
+ * Adding a new acronym is a one-line change here. The set lives in
+ * `format.ts` (not in the agent's `item-heuristics.ts`) because acronym
+ * preservation is a renderer-side concern: the schema stores the raw
+ * string the model produced, and the renderer is what the user sees.
  */
-export function formatItemTitle(item: {
-  action: string;
-  scope: string;
-}): string {
-  const verb = formatActionVerb(item.action);
-  const scope = leadLower(item.scope);
-  return `${verb} ${scope}`;
+const ACRONYMS: ReadonlySet<string> = new Set([
+  'GFCI',
+  'AFCI',
+  'NEC',
+  'PT',
+  'PVC',
+  'PEX',
+  'CO',
+  'CO2',
+  'HVAC',
+  'GF',
+  'WH',
+  'R',
+  'RCP',
+]);
+
+export function formatScope(scope: string): string {
+  return titleCaseTokens(scope, ACRONYMS);
 }
 
-function formatActionVerb(action: string): string {
-  switch (action) {
-    case 'repair':
-      return 'Repair';
-    case 'replace':
-      return 'Replace';
-    case 'install':
-      return 'Install';
-    case 'remove':
-      return 'Remove';
-    case 'service':
-      return 'Service';
-    case 'evaluate':
-      return 'Inspect & evaluate';
-    default: {
-      if (action.length === 0) return 'Address';
-      return action.charAt(0).toUpperCase() + action.slice(1);
-    }
+export function formatLocation(location: string): string {
+  // ZIP codes are not words; leave them verbatim.
+  if (/^\d{5}(-\d{4})?$/.test(location)) return location;
+  return titleCaseTokens(location, ACRONYMS);
+}
+
+function titleCaseTokens(s: string, acronyms: ReadonlySet<string>): string {
+  if (s.length === 0) return s;
+  return s
+    .split(/(\s+)/) // keep whitespace as separators
+    .map((token) => titleCaseToken(token, acronyms))
+    .join('');
+}
+
+function titleCaseToken(token: string, acronyms: ReadonlySet<string>): string {
+  if (token.length === 0) return token;
+  // If the token matches an acronym (case-insensitive), use the canonical form.
+  const upper = token.toUpperCase();
+  if (acronyms.has(upper)) return upper;
+  // Otherwise, Title Case the first character and leave the rest alone.
+  return token.charAt(0).toUpperCase() + token.slice(1);
+}
+
+/**
+ * Display label for a `BillableItem.unit` chip.
+ *
+ * The prototype rule: when `costType === 'labor'`, the chip is ALWAYS
+ * "HRS" regardless of the model's `unit` field. For material lines, the
+ * chip is the uppercased unit ("EA", "SF", "LF", "CY", "HRS"). `sqft` is
+ * an alias for `sf` — both render as "SF".
+ */
+export function formatUnit(unit: string, costType: string): string {
+  if (costType === 'labor') return 'HRS';
+  switch (unit) {
+    case 'ea':
+      return 'EA';
+    case 'lf':
+      return 'LF';
+    case 'sf':
+    case 'sqft':
+      return 'SF';
+    case 'cy':
+      return 'CY';
+    case 'hrs':
+      return 'HRS';
+    default:
+      return unit.toUpperCase();
   }
 }
 
 /**
- * Lower-cases only the first character when the rest of the string isn't
- * already mid-sentence-cased (e.g. don't downcase a proper noun "GFCI").
- * The scope is short noun-phrase content like "GFCI receptacle" or
- * "angle stop under kitchen sink"; we only nudge a plain leading capital
- * down to flow after the verb.
+ * Display label for a `BillableItem.costType` pill. The renderer is the
+ * only place this enum is Title Cased; the schema stores the raw
+ * lowercase value.
  */
-function leadLower(s: string): string {
-  if (s.length === 0) return s;
-  const first = s.charAt(0);
-  const second = s.charAt(1);
-  // If the first two chars are both uppercase (acronym like "GFCI"),
-  // leave the original casing alone.
-  if (first === first.toUpperCase() && second && second === second.toUpperCase()) {
-    return s;
+export function formatCostType(costType: string): string {
+  switch (costType) {
+    case 'labor':
+      return 'Labor';
+    case 'material':
+      return 'Material';
+    default:
+      return costType.charAt(0).toUpperCase() + costType.slice(1);
   }
-  return first.toLowerCase() + s.slice(1);
 }
