@@ -1,5 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
+import { ItemContractGuard } from './processors/item-contract-guard';
 
 const gateway = createOpenAI({
   apiKey: process.env.KILO_API_KEY!,
@@ -86,10 +87,10 @@ FIELDS YOU MUST PRODUCE PER ITEM
   service, etc.). "evaluate" is for specialist inspections (heat exchanger
   leak test, permit verification, radon mitigation assessment). Do not omit
   an item because the action is unclear; pick the closest fit from the six.
-- scope: a short, specific noun phrase identifying what is being acted on.
-  Examples: "kitchen GFCI receptacle", "angle stop under kitchen sink",
-  "double-tapped breaker #14 in main panel". Be specific enough that a
-  contractor knows exactly what to quote.
+- scope: a short noun phrase naming the item. Be specific enough that a
+  contractor knows exactly what to quote. Examples: 'kitchen GFCI
+  receptacle', 'angle stop under kitchen sink', 'double-tapped breaker
+  #14 in main panel'.
 - location: verbatim location language from the report. e.g. "Kitchen",
   "Roof — north slope", "Basement — northeast corner".
 - quantity: REQUIRED. Count derived from the inspector's wording. Apply
@@ -108,6 +109,14 @@ FIELDS YOU MUST PRODUCE PER ITEM
   higher defensible reading the report supports. NEVER return null.
   NEVER invent a count the report does not support. NEVER drop an item
   because the count is fuzzy.
+- unit: REQUIRED. One of ea, lf, sf, sqft, cy, hrs. The unit the
+  inspector's count refers to. For labor use 'hrs' if the inspector
+  gave hours; otherwise the physical unit the labor is measured in
+  ('sf' for square-footage work, 'lf' for linear-footage work, etc.).
+  NEVER invent a unit the report does not support.
+- costType: REQUIRED. One of labor, material. Whether the line is work
+  to pay for (labor) or a thing to buy (material). Pick the defensible
+  split from the inspector's wording.
 - sourceQuote: a verbatim excerpt from the report that anchors this item.
   Must be between 8 and 500 characters. Pick the SHORTEST verbatim excerpt
   that still names both the defect and the action in the same sentence
@@ -131,4 +140,6 @@ report contains no billable items, return { "items": [] }.
 Do not include any commentary, explanation, preamble, or text outside the JSON.
 `,
   model: gateway('openai/gpt-5.4-mini'),
+  outputProcessors: [new ItemContractGuard()],
+  maxProcessorRetries: 3,
 });

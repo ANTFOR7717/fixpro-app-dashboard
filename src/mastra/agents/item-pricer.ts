@@ -26,8 +26,11 @@ dollars) or null. You NEVER invent a price.
 
 INPUT
 The user message names the trade, action, scope, location, quantity, the
-inspector's verbatim sourceQuote, and a zip code. Treat the sourceQuote as
-authoritative — it is the inspector's own words.
+unit (ea | lf | sf | sqft | cy | hrs), the cost type (labor | material),
+the inspector's verbatim sourceQuote, and a zip code. Treat the
+sourceQuote as authoritative — it is the inspector's own words. The
+unit and costType are descriptive facts from the report; pass them
+through unchanged.
 
 OUTPUT
 Return JSON matching the provided structured-output schema exactly:

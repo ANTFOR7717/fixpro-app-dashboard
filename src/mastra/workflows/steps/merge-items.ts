@@ -1,4 +1,5 @@
 import { createStep } from '@mastra/core/workflows';
+import { createHash } from 'crypto';
 import { z } from 'zod';
 import {
   type BillableItem,
@@ -30,8 +31,15 @@ function normQuote(q: string): string {
   return q.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function pad3(n: number): string {
-  return String(n).padStart(3, '0');
+/**
+ * Content-addressable id: sha256 of the item's identifying tuple,
+ * truncated to 12 hex chars. Stable across passes (extract + audit)
+ * and across re-runs of the same estimate, so the audit pass can
+ * reference Pass A ids directly without remapping.
+ */
+function generateItemId(it: BillableItem): string {
+  const seed = `${it.trade}-${it.action}-${it.scope}-${it.location}`.toLowerCase();
+  return 'item-' + createHash('sha256').update(seed).digest('hex').slice(0, 12);
 }
 
 export const mergeItemsStep = createStep({
@@ -78,9 +86,9 @@ export const mergeItemsStep = createStep({
       merged.push(it);
     }
 
-    const renumbered = merged.map((it, idx) => ({
+    const renumbered = merged.map((it) => ({
       ...it,
-      id: `item-${pad3(idx + 1)}`,
+      id: generateItemId(it),
     }));
 
     mastra.getLogger().info('[extraction-quality]', {
