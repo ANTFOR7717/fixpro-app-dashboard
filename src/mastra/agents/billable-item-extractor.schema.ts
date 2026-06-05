@@ -37,6 +37,22 @@ export const ACTION = [
   'evaluate',
 ] as const;
 
+/**
+ * Unit the inspector's count refers to. The report renders this as a chip
+ * next to the quantity (e.g. "0.5 CY", "8 SF", "6 HRS"). `sf` and `sqft`
+ * are aliases for the same concept; the report renders both as "SF".
+ *
+ * Note: a Labor line can technically have any of these as its `unit`
+ * (the pricer prices by the unit the model emits). The report renderer
+ * forces the chip to "HRS" when costType is "labor" — see Plan B.
+ */
+export const UNIT = ['ea', 'lf', 'sf', 'sqft', 'cy', 'hrs'] as const;
+
+/**
+ * Whether the line is labor or material. Drives the Type badge.
+ */
+export const COST_TYPE = ['labor', 'material'] as const;
+
 export const billableItemSchema = z.object({
   /** Stable per-run id, e.g. "item-001". The merge step renumbers these. */
   id: z.string(),
@@ -73,6 +89,20 @@ export const billableItemSchema = z.object({
    * report does not support.
    */
   quantity: z.number().int().min(1),
+
+  /**
+   * Unit of the count. REQUIRED. Pick the unit the inspector's count
+   * refers to. For labor use 'hrs' if the inspector gave hours, else
+   * the physical unit the labor is measured in ('sf' for square-footage
+   * work, 'lf' for linear-footage work). NEVER invent a unit.
+   */
+  unit: z.enum(UNIT),
+
+  /**
+   * Whether the line is labor or material. REQUIRED. Pick the defensible
+   * split from the inspector's wording.
+   */
+  costType: z.enum(COST_TYPE),
 
   /**
    * Verbatim excerpt from the report that anchors this item. Required for
