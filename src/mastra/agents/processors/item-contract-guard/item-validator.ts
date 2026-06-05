@@ -6,10 +6,13 @@ import {
 } from '../../billable-item-extractor.schema';
 import {
   ARTICLES,
-  ACTION_VERBS,
   SENTENCE_PUNCTUATION_RE,
 } from './item-heuristics';
-import type { ItemShape } from './item-shape-schema';
+import {
+  INCOMPATIBLE_UNITS,
+  ACTION_VERBS_SET,
+} from '../../../config/agent-rules';
+import type { BillableItemGuard } from '../../billable-item-extractor.schema';
 
 /**
  * The shape of a single contract violation, ready to be rendered into
@@ -42,7 +45,7 @@ const VALID_COST_TYPES: ReadonlySet<string> = new Set<string>(COST_TYPE);
  * Mastra, Zod, or the LLM.
  */
 export function validateItem(
-  item: ItemShape,
+  item: BillableItemGuard,
   index: number,
 ): ItemViolation {
   const reasons: string[] = [];
@@ -52,9 +55,10 @@ export function validateItem(
   checkEnum('unit', item.unit, VALID_UNITS, reasons);
   checkEnum('costType', item.costType, VALID_COST_TYPES, reasons);
 
-  if (item.costType === 'material' && item.unit === 'hrs') {
+  const forbiddenUnits = INCOMPATIBLE_UNITS[item.costType];
+  if (forbiddenUnits?.has(item.unit)) {
     reasons.push(
-      'costType=material cannot pair with unit=hrs (HRS is for labor)',
+      `costType=${item.costType} cannot pair with unit=${item.unit}`,
     );
   }
 
@@ -87,9 +91,10 @@ function checkScopeShape(scope: string, out: string[]): void {
       `scope "${scope}" starts with article "${firstWord}" — emit the noun phrase without a leading article`,
     );
   }
-  if (ACTION_VERBS.has(firstWord)) {
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  if (ACTION_VERBS_SET.has(firstWord) && tokens.length < 3) {
     out.push(
-      `scope "${scope}" starts with action verb "${firstWord}" — the action belongs in the "action" field, not scope`,
+      `scope "${scope}" likely starts with an action verb — the action belongs in the "action" field, not scope`,
     );
   }
   if (SENTENCE_PUNCTUATION_RE.test(trimmed)) {
@@ -97,7 +102,6 @@ function checkScopeShape(scope: string, out: string[]): void {
       `scope "${scope}" contains sentence punctuation — emit a noun phrase, not a sentence`,
     );
   }
-  const tokens = trimmed.split(/\s+/).filter(Boolean);
   if (tokens.length < 2) {
     out.push(
       `scope "${scope}" is a single token — be more specific (e.g. "kitchen GFCI receptacle")`,

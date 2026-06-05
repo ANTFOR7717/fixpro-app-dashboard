@@ -5,13 +5,20 @@
  *   1. Raw JSON: `{"items": [...]}`
  *   2. Fenced markdown: ```json\n{"items": [...]}\n```
  *
- * Returns `null` if no balanced top-level `{...}` is found OR if the
- * candidate slice fails to parse as JSON.
+ * Returns `null` if no top-level `{...}` is found OR if jsonrepair+parse fail.
  *
  * This is a focused, single-purpose utility. It is NOT a general-purpose
  * JSON parser. It exists because the LLM sometimes wraps the structured
  * response in markdown fences, and Zod needs a parsed value to validate.
+ *
+ * `jsonrepair` is a tiny dedicated lib that handles LLM-typical JSON slop:
+ * trailing commas, unquoted keys, single quotes, comments, Python literals
+ * (None/True/False), and unterminated strings (it will close them). It's
+ * safer than a hand-rolled walker because it has unit-tested corner cases
+ * (e.g. braces inside strings, escaped quotes).
  */
+
+import { jsonrepair } from 'jsonrepair';
 
 const FENCE_RE = /```(?:json)?\s*([\s\S]*?)```/;
 
@@ -20,20 +27,22 @@ export function extractFirstJsonObject(text: string): unknown | null {
   const candidate = fenceMatch ? fenceMatch[1]! : text;
   const start = candidate.indexOf('{');
   if (start === -1) return null;
-  return sliceBalancedObject(candidate, start);
+  const end = findBalancedEnd(candidate, start);
+  if (end === -1) return null;
+  const slice = candidate.slice(start, end + 1);
+  try {
+    return JSON.parse(jsonrepair(slice));
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Walk forward from `start` (assumed to point at `{`) and return
- * `JSON.parse` of the balanced object, or `null` if no balance is found
- * or parsing fails. Respects string boundaries and escape sequences.
- */
-function sliceBalancedObject(candidate: string, start: number): unknown | null {
+function findBalancedEnd(s: string, start: number): number {
   let depth = 0;
   let inString = false;
   let escape = false;
-  for (let i = start; i < candidate.length; i++) {
-    const ch = candidate[i]!;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i]!;
     if (escape) {
       escape = false;
       continue;
@@ -47,20 +56,11 @@ function sliceBalancedObject(candidate: string, start: number): unknown | null {
       continue;
     }
     if (inString) continue;
-    if (ch === '{') {
-      depth++;
-      continue;
-    }
-    if (ch === '}') {
+    if (ch === '{') depth++;
+    else if (ch === '}') {
       depth--;
-      if (depth === 0) {
-        try {
-          return JSON.parse(candidate.slice(start, i + 1));
-        } catch {
-          return null;
-        }
-      }
+      if (depth === 0) return i;
     }
   }
-  return null;
+  return -1;
 }

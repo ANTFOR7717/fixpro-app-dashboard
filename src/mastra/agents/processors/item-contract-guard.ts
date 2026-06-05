@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type {
   Processor,
   ProcessorViolation,
@@ -5,8 +6,13 @@ import type {
 } from '@mastra/core/processors';
 
 import { extractFirstJsonObject } from './item-contract-guard/extract-json-from-text';
-import { extractionShapeSchema } from './item-contract-guard/item-shape-schema';
 import { validateItem, type ItemViolation } from './item-contract-guard/item-validator';
+import { cleanScope } from './item-contract-guard/cleaner';
+import { billableItemGuardSchema } from '../billable-item-extractor.schema';
+
+const extractionGuardSchema = z.object({
+  items: z.array(billableItemGuardSchema),
+});
 
 /**
  * Mastra output processor for the billable-item extractor agent.
@@ -14,11 +20,13 @@ import { validateItem, type ItemViolation } from './item-contract-guard/item-val
  * This class is the **orchestrator** — it owns the abort/retry flow.
  * All real work lives in the modules it imports:
  *
- *   - `extract-json-from-text.ts`  — `string -> unknown` parser
- *   - `item-shape-schema.ts`       — Zod shape gate
  *   - `item-validator.ts`          — semantic rules (enum membership,
  *                                    costType/unit consistency, scope shape)
  *   - `item-heuristics.ts`         — ARTICLES, ACTION_VERBS, etc.
+ *   - `cleaner.ts`                 — cosmetic scope softening (post-parse)
+ *   - `../billable-item-extractor.schema.ts`
+ *                                  — `billableItemGuardSchema` (loose
+ *                                    shape for the guard's parse gate)
  *
  * On any violation: `abort(reason, { retry: true })`. Mastra re-invokes
  * the LLM with the reason appended to the conversation, up to
@@ -56,7 +64,7 @@ export class ItemContractGuard implements Processor {
       });
     }
 
-    const result = extractionShapeSchema.safeParse(parsed);
+    const result = extractionGuardSchema.safeParse(parsed);
     if (!result.success) {
       abort(formatSchemaMismatch(result.error.issues), {
         retry: true,
@@ -68,7 +76,15 @@ export class ItemContractGuard implements Processor {
     // abort() above returns `never` so this branch is unreachable on
     // failure. The assertion is sound.
     const data = result.data!;
-    const violations: ItemViolation[] = data.items
+    // Soften cosmetic issues before semantic validation: strip a
+    // leading article and Title-Case the first character so we don't
+    // burn an LLM retry on those.
+    const softenedItems = data.items.map((item) => ({
+      ...item,
+      scope: cleanScope(item.scope),
+    }));
+
+    const violations: ItemViolation[] = softenedItems
       .map((item, i) => validateItem(item, i))
       .filter((v) => v.reasons.length > 0);
 

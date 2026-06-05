@@ -131,6 +131,26 @@ export const billableItemSchema = z.object({
 
 export type BillableItem = z.infer<typeof billableItemSchema>;
 
+/**
+ * Looser variant of `billableItemSchema` used by the `ItemContractGuard`
+ * output processor. The four enum fields are widened to `z.string()` so
+ * the guard can produce field-specific, actionable abort messages
+ * ("trade \"misc\" is not in the allowed TRADE enum") instead of the
+ * generic Zod error the strict schema would produce.
+ *
+ * Lives in the same file as the strict schema so the two cannot drift
+ * on the field list — the loose one is a strict-superset that only
+ * re-declares the four enum fields.
+ */
+export const billableItemGuardSchema = billableItemSchema.extend({
+  trade: z.string(),
+  action: z.string(),
+  unit: z.string(),
+  costType: z.string(),
+});
+
+export type BillableItemGuard = z.infer<typeof billableItemGuardSchema>;
+
 export const billableExtractionSchema = z.object({
   items: z.array(billableItemSchema),
 });
