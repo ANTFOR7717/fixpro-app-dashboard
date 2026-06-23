@@ -3,11 +3,11 @@ import { estimateRequestTable } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { authServerProvider } from "@/auth/server-provider";
 import { headers } from "next/headers";
-import { FileText, Loader2, CheckCircle2, XCircle, ArrowRight } from "lucide-react";
-import { Badge } from "@/design-systems/shadcn/components/badge";
+import { FileText, ArrowRight } from "lucide-react";
 import { Button } from "@/design-systems/shadcn/components/button";
 import Link from "next/link";
 import { EstimateRetryButton } from "./estimate-retry-button";
+import { EstimateStatusBar } from "./estimate-status-bar";
 
 export async function RecentEstimatesWidget() {
   const session = await authServerProvider.getSession({
@@ -68,33 +68,13 @@ export async function RecentEstimatesWidget() {
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-4 shrink-0 pl-4">
-                {upload.status === "uploaded" && (
-                  <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                    <FileText className="h-3.5 w-3.5" />
-                    Received
-                  </Badge>
-                )}
-                {upload.status === "processing" && (
-                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Processing
-                  </Badge>
-                )}
+              <div className="flex items-center gap-3 shrink-0 pl-4">
+                <EstimateStatusBar
+                  status={upload.status}
+                  errorMessage={upload.errorMessage}
+                />
                 {upload.status === "failed" && (
-                  <>
-                    <Badge variant="secondary" className="bg-destructive/10 text-destructive hover:bg-destructive/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                      <XCircle className="h-3.5 w-3.5" />
-                      Failed
-                    </Badge>
-                    <EstimateRetryButton id={upload.id} />
-                  </>
-                )}
-                {upload.status === "completed" && (
-                  <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Analyzed
-                  </Badge>
+                  <EstimateRetryButton id={upload.id} />
                 )}
               </div>
             </>

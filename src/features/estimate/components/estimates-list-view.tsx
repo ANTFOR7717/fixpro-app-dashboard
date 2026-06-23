@@ -4,12 +4,13 @@ import { eq, desc } from "drizzle-orm";
 import { authServerProvider } from "@/auth/server-provider";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { FileText, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { Badge } from "@/design-systems/shadcn/components/badge";
+import { FileText } from "lucide-react";
 import { Button } from "@/design-systems/shadcn/components/button";
 import { Card, CardContent } from "@/design-systems/shadcn/components/card";
 import { EstimateDeleteButton } from "./estimate-delete-button";
 import { EstimateRetryButton } from "./estimate-retry-button";
+import { EstimateStatusBar } from "./estimate-status-bar";
+import { RefreshButton } from "./refresh-button";
 
 export async function EstimatesListView() {
   const session = await authServerProvider.getSession({ headers: await headers() });
@@ -23,11 +24,14 @@ export async function EstimatesListView() {
 
   return (
     <div className="max-w-3xl space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">Your Estimates</h1>
-        <p className="text-muted-foreground">
-          Every inspection report you&apos;ve uploaded. Delete an estimate to remove its row and the uploaded PDF.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-extrabold tracking-tight">Your Estimates</h1>
+          <p className="text-muted-foreground">
+            Every inspection report you&apos;ve uploaded. Delete an estimate to remove its row and the uploaded PDF.
+          </p>
+        </div>
+        <RefreshButton />
       </div>
 
       {estimates.length === 0 ? (
@@ -82,32 +86,12 @@ export async function EstimatesListView() {
                     )}
 
                     <div className="flex items-center gap-3 shrink-0 pl-4">
-                      {upload.status === "uploaded" && (
-                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                          <FileText className="h-3.5 w-3.5" />
-                          Received
-                        </Badge>
-                      )}
-                      {upload.status === "processing" && (
-                        <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Processing
-                        </Badge>
-                      )}
+                      <EstimateStatusBar
+                        status={upload.status}
+                        errorMessage={upload.errorMessage}
+                      />
                       {upload.status === "failed" && (
-                        <>
-                          <Badge variant="secondary" className="bg-destructive/10 text-destructive hover:bg-destructive/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                            <XCircle className="h-3.5 w-3.5" />
-                            Failed
-                          </Badge>
-                          <EstimateRetryButton id={upload.id} />
-                        </>
-                      )}
-                      {upload.status === "completed" && (
-                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border-0 flex items-center gap-1.5 font-medium px-2.5 py-0.5">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Analyzed
-                        </Badge>
+                        <EstimateRetryButton id={upload.id} />
                       )}
                       <EstimateDeleteButton id={upload.id} fileName={upload.fileName} />
                     </div>

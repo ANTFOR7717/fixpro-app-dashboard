@@ -1,4 +1,3 @@
-import { LayoutDashboard, Upload } from "lucide-react";
 import type { FeatureMetadata } from "@/lib/registry";
 
 export const dashboardMetadata: FeatureMetadata = {
@@ -8,11 +7,11 @@ export const dashboardMetadata: FeatureMetadata = {
     {
       href: "/dashboard",
       label: "Overview",
-      icon: LayoutDashboard,
+      icon: "layout-dashboard",
       position: "sidebar",
     },
   ],
-  quickActions: [
-    { href: "/dashboard/estimate", label: "Get Repair Estimate", icon: Upload },
-  ],
+  // Quick actions are now defined by the feature that owns the route
+  // (see features/estimate/registry.tsx).
+  quickActions: [],
 };
