@@ -1,4 +1,4 @@
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, FileText } from "lucide-react";
 import type { FeatureMetadata } from "@/lib/registry";
 import { RecentEstimatesWidget } from "./components/recent-estimates-widget";
 
@@ -15,6 +15,7 @@ export const estimateMetadata: FeatureMetadata = {
   ],
   quickActions: [
     { href: "/dashboard/estimate", label: "Upload Inspection Report", icon: ClipboardList },
+    { href: "/dashboard/estimates", label: "View All Estimates", icon: FileText },
   ],
   widgets: [
     {
