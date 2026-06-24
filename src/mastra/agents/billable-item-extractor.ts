@@ -91,6 +91,18 @@ FIELDS YOU MUST PRODUCE PER ITEM
   contractor knows exactly what to quote. Examples: 'kitchen GFCI
   receptacle', 'angle stop under kitchen sink', 'double-tapped breaker
   #14 in main panel'.
+  NEVER emit a bare trade-category word as scope — "siding", "foundation",
+  "chimney", "receptacles", "plumbing", "roof" are NOT valid scope on
+  their own, even if that is the only word the report uses nearby. Find
+  the actual noun phrase from the inspector's sentence that names the
+  specific component or defect. BAD -> GOOD:
+    "siding" -> "loose siding panel" / "damaged siding board"
+    "foundation" -> "foundation moisture intrusion" / "foundation crack"
+    "chimney" -> "leaning chimney structure" / "chimney movement"
+    "receptacles" -> "loose wall receptacle" / "ungrounded receptacle"
+  If the report's wording is genuinely too vague to produce a real noun
+  phrase even after re-reading the sentence, omit the item rather than
+  emit a one-word category label.
 - location: verbatim location language from the report. e.g. "Kitchen",
   "Roof — north slope", "Basement — northeast corner".
 - quantity: REQUIRED. Count derived from the inspector's wording. Apply
@@ -114,9 +126,6 @@ FIELDS YOU MUST PRODUCE PER ITEM
   gave hours; otherwise the physical unit the labor is measured in
   ('sf' for square-footage work, 'lf' for linear-footage work, etc.).
   NEVER invent a unit the report does not support.
-- costType: REQUIRED. One of labor, material. Whether the line is work
-  to pay for (labor) or a thing to buy (material). Pick the defensible
-  split from the inspector's wording.
 - sourceQuote: a verbatim excerpt from the report that anchors this item.
   Must be between 8 and 500 characters. Pick the SHORTEST verbatim excerpt
   that still names both the defect and the action in the same sentence

@@ -3,8 +3,12 @@ import { createHash } from 'crypto';
 import { z } from 'zod';
 import {
   type BillableItem,
+  type ExtractedItem,
   billableItemSchema,
+  extractedItemSchema,
 } from '@/mastra/agents/billable-item-extractor.schema';
+import { ACTION_COST_PROFILE } from '@/mastra/config/agent-rules';
+import { checkScopeShape } from '@/mastra/agents/processors/item-contract-guard/item-validator';
 
 /**
  * Merge Pass A + Pass B items. Pure function, no I/O, no retries.
@@ -22,7 +26,7 @@ import {
  *   - Renumbers `id` sequentially to "item-001", "item-002", ...
  */
 
-function normKey(it: BillableItem): string {
+function normKey(it: ExtractedItem): string {
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
   return [it.trade, it.action, norm(it.scope), norm(it.location)].join('|');
 }
@@ -37,9 +41,46 @@ function normQuote(q: string): string {
  * and across re-runs of the same estimate, so the audit pass can
  * reference Pass A ids directly without remapping.
  */
-function generateItemId(it: BillableItem): string {
+function generateItemId(it: ExtractedItem): string {
   const seed = `${it.trade}-${it.action}-${it.scope}-${it.location}`.toLowerCase();
   return 'item-' + createHash('sha256').update(seed).digest('hex').slice(0, 12);
+}
+
+/**
+ * Deterministically assign `costType` and split mixed-cost items.
+ *
+ * `repair` / `service` / `evaluate` / `remove` never involve buying a
+ * new part — they become a single `labor` line, unchanged otherwise.
+ *
+ * `install` / `replace` always involve BOTH a material purchase and the
+ * labor to put it in — these are split into two billable lines that
+ * share the same trade/action/scope/location/quantity/sourceQuote, so
+ * the report shows two rows badged "Material" and "Labor" for the same
+ * scope/location, each individually priceable, instead of one ambiguous
+ * line that can only be billed as one or the other.
+ *
+ * Split ids are derived from the base id with a stable suffix so they
+ * stay deterministic across re-runs, same as `generateItemId` itself.
+ */
+function classifyAndSplit(
+  items: readonly (ExtractedItem & { id: string })[],
+): { result: BillableItem[]; splitCount: number } {
+  const result: BillableItem[] = [];
+  let splitCount = 0;
+
+  for (const it of items) {
+    const profile = ACTION_COST_PROFILE[it.action];
+    if (profile === 'labor-only') {
+      result.push({ ...it, costType: 'labor' });
+      continue;
+    }
+    // 'material-and-labor'
+    splitCount++;
+    result.push({ ...it, id: `${it.id}-material`, costType: 'material' });
+    result.push({ ...it, id: `${it.id}-labor`, costType: 'labor' });
+  }
+
+  return { result, splitCount };
 }
 
 export const mergeItemsStep = createStep({
@@ -48,8 +89,8 @@ export const mergeItemsStep = createStep({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
     zipCode: z.string(),
-    items: z.array(billableItemSchema),
-    auditItems: z.array(billableItemSchema),
+    items: z.array(extractedItemSchema),
+    auditItems: z.array(extractedItemSchema),
     auditFailed: z.boolean(),
   }),
   outputSchema: z.object({
@@ -60,7 +101,7 @@ export const mergeItemsStep = createStep({
   execute: async ({ inputData, mastra }) => {
     const seenKeys = new Set<string>();
     const seenQuotes = new Set<string>();
-    const merged: BillableItem[] = [];
+    const merged: ExtractedItem[] = [];
     // Extraction-quality counters — logged once at the end of the step so we
     // can spot model regressions without changing the workflow shape.
     let droppedBySourceQuote = 0;
@@ -86,10 +127,22 @@ export const mergeItemsStep = createStep({
       merged.push(it);
     }
 
-    const renumbered = merged.map((it) => ({
+    // Scope-quality safety net: the guard already retries the model on a
+    // vague scope (e.g. a bare "Siding"/"Foundation"/"Receptacles"), but
+    // gives up after `maxProcessorRetries` and lets the last attempt
+    // through anyway. Re-running the IDENTICAL rule here means a vague
+    // scope that survived the guard's retry budget still never reaches
+    // the persisted report — it's dropped instead of shown as a garbage
+    // line item on the client-facing invoice.
+    const scopeValid = merged.filter((it) => checkScopeShape(it.scope).length === 0);
+    const droppedByScopeViolation = merged.length - scopeValid.length;
+
+    const renumbered = scopeValid.map((it) => ({
       ...it,
       id: generateItemId(it),
     }));
+
+    const { result: classified, splitCount } = classifyAndSplit(renumbered);
 
     mastra.getLogger().info('[extraction-quality]', {
       estimateRequestId: inputData.estimateRequestId,
@@ -97,14 +150,17 @@ export const mergeItemsStep = createStep({
       auditCount: inputData.auditItems.length,
       droppedBySourceQuote,
       droppedByStructuralKey,
+      droppedByScopeViolation,
       auditFailed: inputData.auditFailed,
       mergedCount: renumbered.length,
+      splitCount,
+      finalLineCount: classified.length,
     });
 
     return {
       estimateRequestId: inputData.estimateRequestId,
       zipCode: inputData.zipCode,
-      items: renumbered,
+      items: classified,
     };
   },
 });

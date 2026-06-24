@@ -20,14 +20,38 @@
  */
 
 import { ACTION_VERBS } from '../agents/processors/item-contract-guard/item-heuristics';
+import type { Action } from '../agents/billable-item-extractor.schema';
 
 /**
- * `costType -> set of units that are not allowed for that costType`.
- * A lookup keeps the validator free of nested conditionals and makes
- * the rules trivially diffable in code review.
+ * Whether an action implies ONLY labor, or BOTH a material purchase and
+ * labor to install/replace it.
+ *
+ * This is deterministic, not a model judgment call: `repair`, `service`,
+ * `evaluate`, and `remove` never involve buying a new part — you fix,
+ * maintain, inspect, or take away something that already exists.
+ * `install` and `replace` always do — a receptacle, a damper door, a
+ * drain stop, etc. is a physical thing the contractor must buy before
+ * they can charge labor to put it in.
+ *
+ * `merge-items.ts` reads this to assign `costType` and to decide whether
+ * an item becomes one billable line (`'labor-only'`) or two
+ * (`'material-and-labor'` — a `material` line + a `labor` line).
+ *
+ * This replaces the old `INCOMPATIBLE_UNITS` cross-check, which existed
+ * only to catch a bad model-emitted `costType` guess. Once `costType` is
+ * no longer model output (see `extractedItemSchema`), that failure mode
+ * is structurally impossible and the cross-check has nothing left to
+ * catch.
  */
-export const INCOMPATIBLE_UNITS: Readonly<Record<string, ReadonlySet<string>>> = {
-  material: new Set(['hrs']),
+export const ACTION_COST_PROFILE: Readonly<
+  Record<Action, 'labor-only' | 'material-and-labor'>
+> = {
+  repair: 'labor-only',
+  service: 'labor-only',
+  evaluate: 'labor-only',
+  remove: 'labor-only',
+  install: 'material-and-labor',
+  replace: 'material-and-labor',
 };
 
 /**

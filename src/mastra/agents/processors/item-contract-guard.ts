@@ -8,10 +8,10 @@ import type {
 import { extractFirstJsonObject } from './item-contract-guard/extract-json-from-text';
 import { validateItem, type ItemViolation } from './item-contract-guard/item-validator';
 import { cleanScope } from './item-contract-guard/cleaner';
-import { billableItemGuardSchema } from '../billable-item-extractor.schema';
+import { extractedItemGuardSchema } from '../billable-item-extractor.schema';
 
 const extractionGuardSchema = z.object({
-  items: z.array(billableItemGuardSchema),
+  items: z.array(extractedItemGuardSchema),
 });
 
 /**

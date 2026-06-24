@@ -2,17 +2,13 @@ import {
   TRADE,
   ACTION,
   UNIT,
-  COST_TYPE,
 } from '../../billable-item-extractor.schema';
 import {
   ARTICLES,
   SENTENCE_PUNCTUATION_RE,
 } from './item-heuristics';
-import {
-  INCOMPATIBLE_UNITS,
-  ACTION_VERBS_SET,
-} from '../../../config/agent-rules';
-import type { BillableItemGuard } from '../../billable-item-extractor.schema';
+import { ACTION_VERBS_SET } from '../../../config/agent-rules';
+import type { ExtractedItemGuard } from '../../billable-item-extractor.schema';
 
 /**
  * The shape of a single contract violation, ready to be rendered into
@@ -34,7 +30,6 @@ export interface ItemViolation {
 const VALID_TRADES: ReadonlySet<string> = new Set<string>(TRADE);
 const VALID_ACTIONS: ReadonlySet<string> = new Set<string>(ACTION);
 const VALID_UNITS: ReadonlySet<string> = new Set<string>(UNIT);
-const VALID_COST_TYPES: ReadonlySet<string> = new Set<string>(COST_TYPE);
 
 /**
  * Validate one parsed item against the report contract.
@@ -45,7 +40,7 @@ const VALID_COST_TYPES: ReadonlySet<string> = new Set<string>(COST_TYPE);
  * Mastra, Zod, or the LLM.
  */
 export function validateItem(
-  item: BillableItemGuard,
+  item: ExtractedItemGuard,
   index: number,
 ): ItemViolation {
   const reasons: string[] = [];
@@ -53,16 +48,8 @@ export function validateItem(
   checkEnum('trade', item.trade, VALID_TRADES, reasons);
   checkEnum('action', item.action, VALID_ACTIONS, reasons);
   checkEnum('unit', item.unit, VALID_UNITS, reasons);
-  checkEnum('costType', item.costType, VALID_COST_TYPES, reasons);
 
-  const forbiddenUnits = INCOMPATIBLE_UNITS[item.costType];
-  if (forbiddenUnits?.has(item.unit)) {
-    reasons.push(
-      `costType=${item.costType} cannot pair with unit=${item.unit}`,
-    );
-  }
-
-  checkScopeShape(item.scope, reasons);
+  reasons.push(...checkScopeShape(item.scope));
 
   return {
     index,
@@ -72,7 +59,7 @@ export function validateItem(
 }
 
 function checkEnum(
-  field: 'trade' | 'action' | 'unit' | 'costType',
+  field: 'trade' | 'action' | 'unit',
   value: string,
   allowed: ReadonlySet<string>,
   out: string[],
@@ -82,29 +69,41 @@ function checkEnum(
   }
 }
 
-function checkScopeShape(scope: string, out: string[]): void {
+/**
+ * Exported so `merge-items.ts` can run the identical rule as a
+ * deterministic safety net AFTER the guard's retry budget is exhausted.
+ * The guard retries the model up to `maxProcessorRetries` times on a
+ * violation, but if the model still emits a vague scope on the final
+ * attempt, the guard's `abort()` gives up and the bad scope reaches
+ * `merge-items.ts` anyway — this same function is the last line of
+ * defense there, which only works if it's the SAME rule, not a
+ * hand-copied duplicate that can drift.
+ */
+export function checkScopeShape(scope: string): string[] {
+  const reasons: string[] = [];
   const trimmed = scope.trim();
   const firstWord = trimmed.toLowerCase().split(/\s+/)[0] ?? '';
 
   if (ARTICLES.has(firstWord)) {
-    out.push(
+    reasons.push(
       `scope "${scope}" starts with article "${firstWord}" — emit the noun phrase without a leading article`,
     );
   }
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   if (ACTION_VERBS_SET.has(firstWord) && tokens.length < 3) {
-    out.push(
+    reasons.push(
       `scope "${scope}" likely starts with an action verb — the action belongs in the "action" field, not scope`,
     );
   }
   if (SENTENCE_PUNCTUATION_RE.test(trimmed)) {
-    out.push(
+    reasons.push(
       `scope "${scope}" contains sentence punctuation — emit a noun phrase, not a sentence`,
     );
   }
   if (tokens.length < 2) {
-    out.push(
+    reasons.push(
       `scope "${scope}" is a single token — be more specific (e.g. "kitchen GFCI receptacle")`,
     );
   }
+  return reasons;
 }

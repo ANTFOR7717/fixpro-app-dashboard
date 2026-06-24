@@ -53,6 +53,8 @@ export const priceItemsStep = createStep({
           `scope: ${item.scope}\n` +
           `location: ${item.location}\n` +
           `quantity: ${item.quantity}\n` +
+          `unit: ${item.unit}\n` +
+          `costType: ${item.costType}\n` +
           `sourceQuote: ${JSON.stringify(item.sourceQuote)}`;
 
         try {
