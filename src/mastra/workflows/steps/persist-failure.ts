@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { estimateRequestTable } from '@/features/estimate/db/schema';
-import { billableItemSchema } from '@/mastra/agents/billable-item-extractor.schema';
+import { extractedItemSchema } from '@/mastra/agents/billable-item-extractor.schema';
 
 /**
  * Write `status='failed'` + a human-readable `errorMessage` so the UI can
@@ -21,7 +21,7 @@ export const persistFailureStep = createStep({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
     zipCode: z.string(),
-    items: z.array(billableItemSchema),
+    items: z.array(extractedItemSchema),
     failed: z.boolean(),
     errorMessage: z.string().nullable(),
   }),

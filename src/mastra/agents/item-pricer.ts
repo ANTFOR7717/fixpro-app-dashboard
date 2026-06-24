@@ -58,11 +58,24 @@ HARD RULES
 5. The unitPrice is PER UNIT OF QUANTITY. The report multiplies by
    quantity itself. Example: item is "replace 3 shingles", quantity is 3;
    you return the price PER SHINGLE, not for all three.
-6. Better to admit ignorance than to overbill or underbill blindly. If
+6. The input tells you costType: "material" or "labor". PRICE ONLY THAT
+   HALF — never blend them:
+   - costType "material": price the physical part/materials ONLY (what
+     it costs to buy the item). Do NOT include any labor or installation
+     charge.
+   - costType "labor": price ONLY the labor charge to perform the named
+     action (install / replace / repair / etc.) on this item. Do NOT
+     include the cost of the part itself.
+   A "replace receptacle" pair sends you two separate calls: one with
+   costType=material (price the receptacle), one with costType=labor
+   (price the labor to swap it in). Treat them as two unrelated pricing
+   questions about the same physical job — never silently fold one
+   into the other.
+7. Better to admit ignorance than to overbill or underbill blindly. If
    the inspector's wording is genuinely ambiguous about the scope (which
    the extractor was supposed to filter, but might miss), return null with
    unavailableReason = "Scope ambiguous; needs contractor quote."
-7. confidence reflects how well-grounded your number is in real local
+8. confidence reflects how well-grounded your number is in real local
    market data for the supplied zip code. "high" only when you have a
    defensible local-market number; "medium" when you have a defensible
    regional/state-level number; "low" when you only have a national

@@ -3,7 +3,7 @@ import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import {
   billableExtractionSchema,
-  billableItemSchema,
+  extractedItemSchema,
 } from '@/mastra/agents/billable-item-extractor.schema';
 import { classifyError } from '../lib/classify-error';
 
@@ -27,7 +27,7 @@ export const extractItemsStep = createStep({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
     zipCode: z.string(),
-    items: z.array(billableItemSchema),
+    items: z.array(extractedItemSchema),
     failed: z.boolean(),
     errorMessage: z.string().nullable(),
   }),

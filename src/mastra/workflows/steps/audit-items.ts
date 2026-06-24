@@ -3,7 +3,7 @@ import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import {
   billableExtractionSchema,
-  billableItemSchema,
+  extractedItemSchema,
 } from '@/mastra/agents/billable-item-extractor.schema';
 
 /**
@@ -23,7 +23,7 @@ export const auditItemsStep = createStep({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
     zipCode: z.string(),
-    items: z.array(billableItemSchema),
+    items: z.array(extractedItemSchema),
     failed: z.boolean(),
     errorMessage: z.string().nullable(),
   }),
@@ -31,8 +31,8 @@ export const auditItemsStep = createStep({
     estimateRequestId: z.string(),
     fileUrl: z.string().url(),
     zipCode: z.string(),
-    items: z.array(billableItemSchema),
-    auditItems: z.array(billableItemSchema),
+    items: z.array(extractedItemSchema),
+    auditItems: z.array(extractedItemSchema),
     auditFailed: z.boolean(),
   }),
   retries: 1,

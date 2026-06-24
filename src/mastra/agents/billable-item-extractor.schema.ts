@@ -37,6 +37,8 @@ export const ACTION = [
   'evaluate',
 ] as const;
 
+export type Action = (typeof ACTION)[number];
+
 /**
  * Unit the inspector's count refers to. The report renders this as a chip
  * next to the quantity (e.g. "0.5 CY", "8 SF", "6 HRS"). `sf` and `sqft`
@@ -99,8 +101,12 @@ export const billableItemSchema = z.object({
   unit: z.enum(UNIT),
 
   /**
-   * Whether the line is labor or material. REQUIRED. Pick the defensible
-   * split from the inspector's wording.
+   * Whether the line is labor or material. Assigned deterministically by
+   * `merge-items.ts` from `ACTION_COST_PROFILE[action]` — NOT emitted by
+   * the model (see `extractedItemSchema` below). `install`/`replace`
+   * actions are split into one `material` item and one `labor` item;
+   * every other action becomes a single `labor` item. This field only
+   * exists on the persisted/downstream shape.
    */
   costType: z.enum(COST_TYPE),
 
@@ -132,27 +138,46 @@ export const billableItemSchema = z.object({
 export type BillableItem = z.infer<typeof billableItemSchema>;
 
 /**
- * Looser variant of `billableItemSchema` used by the `ItemContractGuard`
- * output processor. The four enum fields are widened to `z.string()` so
+ * The model's ACTUAL output contract. Identical to `billableItemSchema`
+ * minus `costType` — the model is never asked to classify labor vs.
+ * material. That classification is deterministic from `action` alone
+ * (see `ACTION_COST_PROFILE` in `src/mastra/config/agent-rules.ts`) and
+ * is applied in `merge-items.ts`, which is also where `install`/`replace`
+ * items are split into a material line + a labor line.
+ *
+ * Why this exists instead of just making `costType` optional on
+ * `billableItemSchema`: an optional field the model COULD still fill in
+ * (and sometimes would, inconsistently) is exactly the bug this fix
+ * removes. Omitting the field from the schema the model is shown makes
+ * it structurally impossible for the model to emit a costType guess.
+ */
+export const extractedItemSchema = billableItemSchema.omit({
+  costType: true,
+});
+
+export type ExtractedItem = z.infer<typeof extractedItemSchema>;
+
+/**
+ * Looser variant of `extractedItemSchema` used by the `ItemContractGuard`
+ * output processor. The three enum fields are widened to `z.string()` so
  * the guard can produce field-specific, actionable abort messages
  * ("trade \"misc\" is not in the allowed TRADE enum") instead of the
  * generic Zod error the strict schema would produce.
  *
  * Lives in the same file as the strict schema so the two cannot drift
  * on the field list — the loose one is a strict-superset that only
- * re-declares the four enum fields.
+ * re-declares the three enum fields.
  */
-export const billableItemGuardSchema = billableItemSchema.extend({
+export const extractedItemGuardSchema = extractedItemSchema.extend({
   trade: z.string(),
   action: z.string(),
   unit: z.string(),
-  costType: z.string(),
 });
 
-export type BillableItemGuard = z.infer<typeof billableItemGuardSchema>;
+export type ExtractedItemGuard = z.infer<typeof extractedItemGuardSchema>;
 
 export const billableExtractionSchema = z.object({
-  items: z.array(billableItemSchema),
+  items: z.array(extractedItemSchema),
 });
 
 export type BillableExtraction = z.infer<typeof billableExtractionSchema>;
