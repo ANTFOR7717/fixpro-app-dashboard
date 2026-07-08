@@ -41,12 +41,17 @@ export type Action = (typeof ACTION)[number];
 
 /**
  * Unit the inspector's count refers to. The report renders this as a chip
- * next to the quantity (e.g. "0.5 CY", "8 SF", "6 HRS"). `sf` and `sqft`
- * are aliases for the same concept; the report renders both as "SF".
+ * next to the quantity (e.g. "0.5 CY", "8 SF", "6 HRS").
  *
- * Note: a Labor line can technically have any of these as its `unit`
- * (the pricer prices by the unit the model emits). The report renderer
- * forces the chip to "HRS" when costType is "labor" — see Plan B.
+ * 'sqft' is a legacy alias for 'sf'. It stays in the enum so old persisted
+ * envelopes still parse and a model emission of "sqft" doesn't burn a
+ * guard retry, but `merge-items.ts` normalizes it to 'sf' before anything
+ * is priced or persisted — new data never contains 'sqft'.
+ *
+ * Labor lines carry the physical unit the labor is measured in ('ea',
+ * 'sf', 'lf', ...) unless the inspector explicitly gave hours. The report
+ * renders the unit as stored; per-unit labor rates are a standard trade
+ * convention and the pricer prices per that unit.
  */
 export const UNIT = ['ea', 'lf', 'sf', 'sqft', 'cy', 'hrs'] as const;
 
@@ -54,6 +59,8 @@ export const UNIT = ['ea', 'lf', 'sf', 'sqft', 'cy', 'hrs'] as const;
  * Whether the line is labor or material. Drives the Type badge.
  */
 export const COST_TYPE = ['labor', 'material'] as const;
+
+export type CostType = (typeof COST_TYPE)[number];
 
 export const billableItemSchema = z.object({
   /** Stable per-run id, e.g. "item-001". The merge step renumbers these. */

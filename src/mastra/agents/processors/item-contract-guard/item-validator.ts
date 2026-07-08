@@ -7,8 +7,8 @@ import {
   ARTICLES,
   SENTENCE_PUNCTUATION_RE,
 } from './item-heuristics';
-import { ACTION_VERBS_SET } from '../../../config/agent-rules';
-import type { ExtractedItemGuard } from '../../billable-item-extractor.schema';
+import { ACTION_COST_PROFILE, ACTION_VERBS_SET } from '../../../config/agent-rules';
+import type { Action, ExtractedItemGuard } from '../../billable-item-extractor.schema';
 
 /**
  * The shape of a single contract violation, ready to be rendered into
@@ -50,6 +50,7 @@ export function validateItem(
   checkEnum('unit', item.unit, VALID_UNITS, reasons);
 
   reasons.push(...checkScopeShape(item.scope));
+  reasons.push(...checkUnitActionCoupling(item.action, item.unit));
 
   return {
     index,
@@ -106,4 +107,29 @@ export function checkScopeShape(scope: string): string[] {
     );
   }
   return reasons;
+}
+
+/**
+ * Split-action / unit coupling. `install` and `replace` items are split
+ * by `merge-items.ts` into a material line + a labor line that both
+ * inherit `unit` — and hours cannot count a part. The guard asks the
+ * model for the physical unit of the thing being installed; if the
+ * model still emits 'hrs' after the retry budget, `classifyAndSplit`
+ * in `merge-items.ts` coerces the MATERIAL line to 'ea' (the labor
+ * line may legitimately keep 'hrs').
+ *
+ * Same two-layer pattern as `checkScopeShape`: guard retries the model,
+ * merge applies the deterministic fallback.
+ *
+ * An `action` outside the ACTION enum yields no coupling reason here —
+ * `checkEnum` already reports it, and `ACTION_COST_PROFILE` lookup is
+ * simply undefined for it.
+ */
+export function checkUnitActionCoupling(action: string, unit: string): string[] {
+  if (ACTION_COST_PROFILE[action as Action] === 'material-and-labor' && unit === 'hrs') {
+    return [
+      `unit "hrs" is not valid for action "${action}" — this item is split into a material line and a labor line, and a part cannot be counted in hours. Use the physical unit of the item being installed ("ea", "lf", "sf", "cy").`,
+    ];
+  }
+  return [];
 }

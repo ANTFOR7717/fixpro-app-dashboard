@@ -121,11 +121,13 @@ FIELDS YOU MUST PRODUCE PER ITEM
   higher defensible reading the report supports. NEVER return null.
   NEVER invent a count the report does not support. NEVER drop an item
   because the count is fuzzy.
-- unit: REQUIRED. One of ea, lf, sf, sqft, cy, hrs. The unit the
-  inspector's count refers to. For labor use 'hrs' if the inspector
-  gave hours; otherwise the physical unit the labor is measured in
-  ('sf' for square-footage work, 'lf' for linear-footage work, etc.).
-  NEVER invent a unit the report does not support.
+- unit: REQUIRED. One of ea, lf, sf, cy, hrs. The unit the inspector's
+  count refers to (use 'sf' for square footage). Use 'hrs' ONLY when the
+  inspector explicitly gave hours AND the action is repair, service,
+  evaluate, or remove — never for install or replace items, which are
+  counted in the physical unit of the item being installed ('ea' for a
+  fixture, 'sf' for sheet goods, 'lf' for runs). NEVER invent a unit the
+  report does not support.
 - sourceQuote: a verbatim excerpt from the report that anchors this item.
   Must be between 8 and 500 characters. Pick the SHORTEST verbatim excerpt
   that still names both the defect and the action in the same sentence
