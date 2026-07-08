@@ -6,6 +6,7 @@ import {
   pricedLineItemSchema,
 } from '@/mastra/agents/billable-item-extractor.schema';
 import { itemPricerResponseSchema } from '@/mastra/agents/item-pricer.schema';
+import { pricingBasisFor } from '@/mastra/config/agent-rules';
 
 /**
  * For every merged billable item, call the pricer agent with the item's
@@ -45,6 +46,10 @@ export const priceItemsStep = createStep({
       let lookupFailedCount = 0;
 
       for (const item of inputData.items) {
+        // Deterministic: tells the pricer whether a sibling line covers
+        // the other half of the cost (split install/replace pairs) or
+        // this line must carry the all-in job price (labor-only actions).
+        const pricingBasis = pricingBasisFor(item.action, item.costType);
         const userText =
           'Price ONE billable item. Return JSON matching the schema.\n\n' +
           `zipCode: ${inputData.zipCode}\n` +
@@ -55,6 +60,7 @@ export const priceItemsStep = createStep({
           `quantity: ${item.quantity}\n` +
           `unit: ${item.unit}\n` +
           `costType: ${item.costType}\n` +
+          `pricingBasis: ${pricingBasis}\n` +
           `sourceQuote: ${JSON.stringify(item.sourceQuote)}`;
 
         try {

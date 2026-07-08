@@ -156,15 +156,17 @@ function titleCaseToken(token: string, acronyms: ReadonlySet<string>): string {
 }
 
 /**
- * Display label for a `BillableItem.unit` chip.
+ * Display label for a `BillableItem.unit` chip: the uppercased unit
+ * ("EA", "SF", "LF", "CY", "HRS"). `sqft` renders as "SF" — old persisted
+ * envelopes may still contain the alias; `merge-items.ts` normalizes new
+ * data to 'sf'.
  *
- * The prototype rule: when `costType === 'labor'`, the chip is ALWAYS
- * "HRS" regardless of the model's `unit` field. For material lines, the
- * chip is the uppercased unit ("EA", "SF", "LF", "CY", "HRS"). `sqft` is
- * an alias for `sf` — both render as "SF".
+ * Labor lines show their stored unit. The pricer prices per that unit
+ * (per-fixture, per-SF labor rates are standard trade convention); the
+ * removed prototype rule that forced "HRS" onto every labor line
+ * misstated those per-unit rates as hours.
  */
-export function formatUnit(unit: string, costType: string): string {
-  if (costType === 'labor') return 'HRS';
+export function formatUnit(unit: string): string {
   switch (unit) {
     case 'ea':
       return 'EA';

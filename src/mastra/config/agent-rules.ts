@@ -20,7 +20,7 @@
  */
 
 import { ACTION_VERBS } from '../agents/processors/item-contract-guard/item-heuristics';
-import type { Action } from '../agents/billable-item-extractor.schema';
+import type { Action, CostType } from '../agents/billable-item-extractor.schema';
 
 /**
  * Whether an action implies ONLY labor, or BOTH a material purchase and
@@ -53,6 +53,39 @@ export const ACTION_COST_PROFILE: Readonly<
   install: 'material-and-labor',
   replace: 'material-and-labor',
 };
+
+/**
+ * What the pricer must include in its number for one billable line.
+ * Derived deterministically from (action, costType) — never a model
+ * judgment call:
+ *
+ *   - 'material-part-only'   — material half of a split install/replace
+ *     pair. Price the part; the sibling labor line covers installation.
+ *   - 'labor-excluding-part' — labor half of a split pair. Price the
+ *     labor to perform the action; the sibling material line covers
+ *     the part.
+ *   - 'all-in-job'           — labor-only actions (repair / service /
+ *     evaluate / remove). There is NO sibling material line, so the
+ *     price must be the complete job: labor PLUS incidental materials
+ *     (patching compound, sealant, fasteners) PLUS disposal where the
+ *     action implies it.
+ *
+ * `price-items.ts` computes this per line and passes it to the pricer
+ * as an explicit input field, so the model never has to infer whether
+ * a sibling line exists. Before this rule, the pricer excluded parts
+ * from EVERY labor line — correct for split pairs, but for labor-only
+ * actions the excluded materials had no other line to land on and
+ * silently vanished from the estimate.
+ */
+export type PricingBasis =
+  | 'material-part-only'
+  | 'labor-excluding-part'
+  | 'all-in-job';
+
+export function pricingBasisFor(action: Action, costType: CostType): PricingBasis {
+  if (ACTION_COST_PROFILE[action] === 'labor-only') return 'all-in-job';
+  return costType === 'material' ? 'material-part-only' : 'labor-excluding-part';
+}
 
 /**
  * Verbs that the extractor is told to keep out of `scope`. Six of these

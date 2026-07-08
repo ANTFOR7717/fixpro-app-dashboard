@@ -76,7 +76,13 @@ function classifyAndSplit(
     }
     // 'material-and-labor'
     splitCount++;
-    result.push({ ...it, id: `${it.id}-material`, costType: 'material' });
+    // Deterministic twin of the guard's checkUnitActionCoupling rule: if
+    // the model still emitted 'hrs' for an install/replace after the
+    // guard's retry budget, hours cannot count a part — the material
+    // line falls back to 'ea'. The labor line may legitimately keep the
+    // inspector's hours.
+    const materialUnit = it.unit === 'hrs' ? 'ea' : it.unit;
+    result.push({ ...it, id: `${it.id}-material`, unit: materialUnit, costType: 'material' });
     result.push({ ...it, id: `${it.id}-labor`, costType: 'labor' });
   }
 
@@ -139,6 +145,10 @@ export const mergeItemsStep = createStep({
 
     const renumbered = scopeValid.map((it) => ({
       ...it,
+      // 'sqft' is a schema-tolerated legacy alias for 'sf' (see UNIT in
+      // billable-item-extractor.schema.ts). Normalize here so persisted
+      // v2 envelopes and pricer inputs only ever carry 'sf'.
+      unit: it.unit === 'sqft' ? ('sf' as const) : it.unit,
       id: generateItemId(it),
     }));
 
