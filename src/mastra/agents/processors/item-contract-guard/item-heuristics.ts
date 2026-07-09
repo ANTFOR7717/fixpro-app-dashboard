@@ -66,3 +66,26 @@ export const ACTION_VERBS: ReadonlySet<string> = new Set([
 
 /** Sentence-ending punctuation. A `scope` containing any of these is a sentence. */
 export const SENTENCE_PUNCTUATION_RE: RegExp = /[.!?]/;
+
+/**
+ * Materials real contractors quote by SQUARE FOOTAGE, never "each" — even
+ * when the inspection report gives no explicit measurement. A scope
+ * naming one of these with `unit: 'ea'` is implausible on its face: nobody
+ * buys or bids "1 each" of siding or drywall.
+ */
+export const AREA_MATERIAL_KEYWORDS: ReadonlySet<string> = new Set([
+  'siding', 'drywall', 'roofing', 'shingle', 'shingles', 'flooring',
+  'subfloor', 'sheathing', 'insulation', 'stucco', 'plaster', 'underlayment',
+  'membrane', 'paneling',
+]);
+
+/**
+ * Materials real contractors quote by LINEAR FOOTAGE, never "each" — same
+ * rationale as `AREA_MATERIAL_KEYWORDS`, for length-measured trim/edge
+ * components.
+ */
+export const LENGTH_MATERIAL_KEYWORDS: ReadonlySet<string> = new Set([
+  'trim', 'fascia', 'soffit', 'gutter', 'downspout', 'fencing', 'fence',
+  'railing', 'baseboard', 'casing', 'molding', 'coping', 'flashing',
+  'weatherstripping',
+]);

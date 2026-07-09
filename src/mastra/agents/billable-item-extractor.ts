@@ -121,13 +121,33 @@ FIELDS YOU MUST PRODUCE PER ITEM
   higher defensible reading the report supports. NEVER return null.
   NEVER invent a count the report does not support. NEVER drop an item
   because the count is fuzzy.
-- unit: REQUIRED. One of ea, lf, sf, cy, hrs. The unit the inspector's
-  count refers to (use 'sf' for square footage). Use 'hrs' ONLY when the
-  inspector explicitly gave hours AND the action is repair, service,
-  evaluate, or remove — never for install or replace items, which are
-  counted in the physical unit of the item being installed ('ea' for a
-  fixture, 'sf' for sheet goods, 'lf' for runs). NEVER invent a unit the
-  report does not support.
+- unit: REQUIRED. One of ea, lf, sf, cy, hrs. Pick the unit REAL
+  CONTRACTORS use to quote that TYPE of material or labor — this is a
+  fact about the trade, not something you need the report to state
+  explicitly. Do NOT default to 'ea' just because no measurement is
+  given in the text.
+    - AREA-measured materials (siding, drywall, roofing/shingles,
+      flooring, insulation, stucco, plaster) -> 'sf', even with no square
+      footage stated in the report.
+    - LENGTH-measured materials (trim, fascia, soffit, gutter, fencing,
+      railing, baseboard) -> 'lf', even with no footage stated.
+    - Genuinely discrete, individually-purchased items (a receptacle, a
+      breaker, a valve, a damper door, a water heater, a single fixture)
+      -> 'ea'. Correct ONLY for something bought and counted as one whole
+      unit — never for a material sold by the square or linear foot.
+    - Time-based labor with an inspector-STATED hour count -> 'hrs'.
+    - 'cy' (cubic yards) for bulk material volume (concrete, fill dirt)
+      when the report gives a volume.
+  BAD -> GOOD:
+    "damaged wood siding" + unit 'ea' -> unit 'sf'
+    "loose exterior trim" + unit 'ea' -> unit 'lf'
+    "leaning chimney structure" (a whole-structure repair, not sold by
+      the foot) -> unit 'ea' is correct here
+  If a candidate names TWO different physical components joined by
+  "or"/"and" (e.g. "trim or wood siding"), they almost always have
+  DIFFERENT correct units — split into TWO separate items, one per
+  component, each with its own scope/unit. NEVER emit one item naming two
+  different components. NEVER invent a unit the report does not support.
 - sourceQuote: a verbatim excerpt from the report that anchors this item.
   Must be between 8 and 500 characters. Pick the SHORTEST verbatim excerpt
   that still names both the defect and the action in the same sentence

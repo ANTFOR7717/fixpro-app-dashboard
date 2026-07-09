@@ -132,6 +132,50 @@ export function formatScope(scope: string): string {
   return titleCaseTokens(scope, ACRONYMS);
 }
 
+/**
+ * Labor-row noun suffix for the two actions that ever produce a
+ * material+labor split (`ACTION_COST_PROFILE` in `agent-rules.ts`).
+ * Deliberately a NOUN ("Installation"/"Replacement"), not a verb
+ * ("Install"/"Replace") — see `formatItemTitle` below for why.
+ */
+const LABOR_SPLIT_SUFFIX: Partial<Record<string, string>> = {
+  install: 'Installation',
+  replace: 'Replacement',
+};
+
+/**
+ * Renderer-side title for a billable item's row, differentiating a split
+ * pair's Material and Labor rows without an action-verb prefix.
+ *
+ * `merge-items.ts` clones the entire item — including `scope` — onto
+ * both halves of an install/replace split, so both rows previously
+ * called `formatScope(item.scope)` on the identical string: same bold
+ * title on both rows, nothing but the small MATERIAL/LABOR badge to tell
+ * them apart. This reads as duplicated, undifferentiated output.
+ *
+ * Fix is a trailing NOUN qualifier on the labor half only ("Wood Siding
+ * Board Replacement" vs "Wood Siding Board") — NOT an action-verb prefix.
+ * `formatScope`'s own doc comment above records that a past PR (#13)
+ * deliberately removed a verb-prefix behavior "because it drifted from
+ * the prototype"; a noun suffix is an additive, distinct concern from
+ * that removed behavior, not a reintroduction of it.
+ *
+ * Labor-only actions (repair, service, evaluate, remove — see
+ * `ACTION_COST_PROFILE`) have no material counterpart to differentiate
+ * against, so they get no suffix and render exactly as `formatScope`
+ * alone would produce, unchanged from today.
+ */
+export function formatItemTitle(
+  scope: string,
+  action: string,
+  costType: string,
+): string {
+  const base = formatScope(scope);
+  if (costType !== 'labor') return base;
+  const suffix = LABOR_SPLIT_SUFFIX[action];
+  return suffix ? `${base} ${suffix}` : base;
+}
+
 export function formatLocation(location: string): string {
   // ZIP codes are not words; leave them verbatim.
   if (/^\d{5}(-\d{4})?$/.test(location)) return location;

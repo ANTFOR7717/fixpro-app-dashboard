@@ -6,6 +6,8 @@ import {
 import {
   ARTICLES,
   SENTENCE_PUNCTUATION_RE,
+  AREA_MATERIAL_KEYWORDS,
+  LENGTH_MATERIAL_KEYWORDS,
 } from './item-heuristics';
 import { ACTION_COST_PROFILE, ACTION_VERBS_SET } from '../../../config/agent-rules';
 import type { Action, ExtractedItemGuard } from '../../billable-item-extractor.schema';
@@ -51,6 +53,8 @@ export function validateItem(
 
   reasons.push(...checkScopeShape(item.scope));
   reasons.push(...checkUnitActionCoupling(item.action, item.unit));
+  reasons.push(...checkMaterialUnitPlausibility(item.scope, item.unit));
+  reasons.push(...checkMixedMaterialTypeScope(item.scope));
 
   return {
     index,
@@ -129,6 +133,60 @@ export function checkUnitActionCoupling(action: string, unit: string): string[] 
   if (ACTION_COST_PROFILE[action as Action] === 'material-and-labor' && unit === 'hrs') {
     return [
       `unit "hrs" is not valid for action "${action}" — this item is split into a material line and a labor line, and a part cannot be counted in hours. Use the physical unit of the item being installed ("ea", "lf", "sf", "cy").`,
+    ];
+  }
+  return [];
+}
+
+/**
+ * Catches the "1 EA of wood siding" failure mode: `unit: 'ea'` on a scope
+ * naming a material real contractors quote by area or length, regardless
+ * of whether the report stated an explicit measurement. Only fires for
+ * `unit === 'ea'` — sf/lf/hrs/cy are never flagged here, since the model
+ * already picked a plausible measured unit in that case.
+ */
+export function checkMaterialUnitPlausibility(scope: string, unit: string): string[] {
+  if (unit !== 'ea') return [];
+  const lower = scope.toLowerCase();
+
+  for (const keyword of AREA_MATERIAL_KEYWORDS) {
+    if (lower.includes(keyword)) {
+      return [
+        `scope "${scope}" names an area-measured material ("${keyword}") but unit is "ea" — contractors quote this by square footage. Use unit "sf", not "ea", even if the report gives no explicit measurement.`,
+      ];
+    }
+  }
+  for (const keyword of LENGTH_MATERIAL_KEYWORDS) {
+    if (lower.includes(keyword)) {
+      return [
+        `scope "${scope}" names a length-measured material ("${keyword}") but unit is "ea" — contractors quote this by linear footage. Use unit "lf", not "ea", even if the report gives no explicit measurement.`,
+      ];
+    }
+  }
+  return [];
+}
+
+/**
+ * Catches a scope naming BOTH an area-measured material AND a
+ * length-measured material (e.g. "trim or wood siding" — trim is `lf`,
+ * siding is `sf`). This is a provable unit conflict: the scope names two
+ * components that can never share one correct unit, so it must become
+ * two items, not one.
+ *
+ * Deliberately NOT a generic "contains the word 'or'/'and'" check — an
+ * earlier draft of this rule used exactly that regex and would have
+ * incorrectly flagged "Peeling And Chipping Exterior Paint" (one
+ * material, two symptoms, joined by "and" — not two different
+ * components). Requiring a match from BOTH keyword sets targets the
+ * actual defect (mismatched unit types) instead of grammar.
+ */
+export function checkMixedMaterialTypeScope(scope: string): string[] {
+  const lower = scope.toLowerCase();
+  const hasArea = [...AREA_MATERIAL_KEYWORDS].some((k) => lower.includes(k));
+  const hasLength = [...LENGTH_MATERIAL_KEYWORDS].some((k) => lower.includes(k));
+  if (hasArea && hasLength) {
+    return [
+      `scope "${scope}" names both an area-measured material and a length-measured material — these can never share one correct unit. Emit TWO separate items, one per component, each with its own correct unit ("sf" or "lf").`,
     ];
   }
   return [];
