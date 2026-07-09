@@ -3,6 +3,24 @@
 Project-scoped instructions for AI agents working in this repository. These
 rules take precedence over any conflicting personal rules.
 
+## No action without explicit instruction
+
+**Assume you know nothing about the right approach unless the user has
+explicitly told you. Assume you will be wrong without their guidance.**
+
+- Do not treat a clarifying question, an explanation request, a "do you
+  understand?", an approval-in-principle, or any other exploratory exchange
+  as authorization to act.
+- Do not infer permission from the shape or tone of the conversation. If the
+  user has not said, in explicit terms, to execute/implement/edit/restructure
+  a specific thing, do not touch files for it — including "prep" steps like
+  reading files or planning edits in service of an action that hasn't been
+  authorized yet.
+- When in doubt about whether something counts as explicit instruction, stop
+  and ask rather than proceeding.
+- This applies on top of, not instead of, the plan-approval workflow below —
+  a written plan being complete is not itself authorization to implement it.
+
 ## Version control workflow
 
 **All feature work MUST be delivered via a feature branch and a pull request.

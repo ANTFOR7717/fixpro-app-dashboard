@@ -18,7 +18,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "mastra:dev": "mastra dev --dir src/features/estimate-extraction-pipeline",
+    "mastra:build": "mastra build --dir src/features/estimate-extraction-pipeline"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.62",
@@ -44,7 +46,6 @@
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.45.1",
     "framer-motion": "^12.23.9",
-    "jsonrepair": "^3.14.0",
     "lucide-react": "^0.562.0",
     "next": "^16.0.10",
     "pg": "^8.16.0",

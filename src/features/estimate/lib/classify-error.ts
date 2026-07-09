@@ -1,6 +1,6 @@
 /**
  * Map an unknown error from an AI gateway call to a user-facing message.
- * Used by extract / audit steps to return resilient failures.
+ * Used by triggerSummarizeEstimate to persist a human-readable failure.
  */
 export function classifyError(e: unknown): string {
   const err = e as { statusCode?: number; code?: string; message?: string } | undefined;

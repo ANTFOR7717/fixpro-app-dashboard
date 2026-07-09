@@ -10,18 +10,19 @@ import {
   formatCurrency,
   formatLineTotal,
   formatLocation,
-  formatScope,
+  formatItemTitle,
   formatTradeLabel,
   formatUnit,
 } from '@/features/estimate/lib/format';
-import { groupSplitPairs } from '@/features/estimate/lib/group-split-pairs';
-import type {
-  BillableItem,
-  PricedLineItem,
-} from '@/mastra/agents/billable-item-extractor.schema';
+import type { LegacyBillableItem } from '@/features/estimate/lib/envelope';
+import type { BillableLine } from '@/features/estimate-extraction-pipeline/classification';
+import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
+
+/** v3 lines and legacy v1/v2 items render through the same rows. */
+type RenderableItem = LegacyBillableItem | BillableLine;
 
 interface ItemsSectionProps {
-  items: BillableItem[];
+  items: RenderableItem[];
   prices: PricedLineItem[];
 }
 
@@ -54,7 +55,7 @@ export function ItemsSection({ items, prices }: ItemsSectionProps) {
 
   // Group items by `trade`, preserving order of first appearance.
   const groups = useMemo(() => {
-    const byTrade = new Map<string, BillableItem[]>();
+    const byTrade = new Map<string, RenderableItem[]>();
     for (const item of items) {
       const list = byTrade.get(item.trade);
       if (list) list.push(item);
@@ -92,8 +93,8 @@ export function ItemsSection({ items, prices }: ItemsSectionProps) {
         <div>
           <h2 className="text-lg font-semibold">Billable Items</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Grouped by Trade. Client Total is Quantity × Unit Price. Install
-            and Replace Items are Split into Material and Labor Lines.
+            Grouped by Trade. Client Total is Quantity × Unit Price. Labor is
+            always measured in Hours.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
@@ -155,7 +156,7 @@ function TradeGroup({
   showEvidence,
 }: {
   trade: string;
-  groupItems: BillableItem[];
+  groupItems: RenderableItem[];
   groupSubtotal: number;
   priceByItemId: Map<string, PricedLineItem>;
   showSource: boolean;
@@ -176,25 +177,15 @@ function TradeGroup({
         </div>
       </div>
       <div>
-        {groupSplitPairs(groupItems).map((group) =>
-          group.lines.length === 1 ? (
-            <ItemRow
-              key={group.lines[0].id}
-              item={group.lines[0]}
-              price={priceByItemId.get(group.lines[0].id) ?? null}
-              showSource={showSource}
-              showEvidence={showEvidence}
-            />
-          ) : (
-            <SplitItemRow
-              key={group.lines[0].id}
-              lines={group.lines}
-              priceByItemId={priceByItemId}
-              showSource={showSource}
-              showEvidence={showEvidence}
-            />
-          ),
-        )}
+        {groupItems.map((item) => (
+          <ItemRow
+            key={item.id}
+            item={item}
+            price={priceByItemId.get(item.id) ?? null}
+            showSource={showSource}
+            showEvidence={showEvidence}
+          />
+        ))}
       </div>
     </div>
   );
@@ -206,7 +197,7 @@ function ItemRow({
   showSource,
   showEvidence,
 }: {
-  item: BillableItem;
+  item: RenderableItem;
   price: PricedLineItem | null;
   showSource: boolean;
   showEvidence: boolean;
@@ -217,7 +208,9 @@ function ItemRow({
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_90px_110px_130px] items-center border-t px-4 py-3 text-sm">
       <div>
-        <div className="font-medium leading-snug">{formatScope(item.scope)}</div>
+        <div className="font-medium leading-snug">
+          {formatItemTitle(item.scope, item.action, item.costType)}
+        </div>
         <div className="text-xs text-muted-foreground">
           {formatLocation(item.location)}
         </div>
@@ -250,103 +243,6 @@ function ItemRow({
         <span className="font-medium">{item.quantity}</span>
         <span className="ml-1 inline-flex items-center rounded-md border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
           {formatUnit(item.unit)}
-        </span>
-      </div>
-      <div
-        className={
-          isUnpriced
-            ? 'tabular-nums text-right text-muted-foreground'
-            : 'tabular-nums text-right font-semibold'
-        }
-      >
-        {lineTotal}
-      </div>
-    </div>
-  );
-}
-
-/**
- * One split install/replace item: the scope/location/source-quote block
- * renders once, followed by the material and labor cost lines. The cost
- * lines reuse ItemRow's grid template so the Type badge, quantity, and
- * line-total columns stay aligned with single-line items.
- */
-function SplitItemRow({
-  lines,
-  priceByItemId,
-  showSource,
-  showEvidence,
-}: {
-  lines: BillableItem[];
-  priceByItemId: Map<string, PricedLineItem>;
-  showSource: boolean;
-  showEvidence: boolean;
-}) {
-  const first = lines[0];
-  return (
-    <div className="border-t px-4 py-3 text-sm">
-      <div className="font-medium leading-snug">{formatScope(first.scope)}</div>
-      <div className="text-xs text-muted-foreground">
-        {formatLocation(first.location)}
-      </div>
-      {showSource ? (
-        <div className="mt-1 text-sm italic text-muted-foreground">
-          “{first.sourceQuote}”
-          {first.pageHint ? (
-            <span className="not-italic"> ({first.pageHint})</span>
-          ) : null}
-        </div>
-      ) : null}
-      <div className="mt-2">
-        {lines.map((line) => (
-          <CostLine
-            key={line.id}
-            line={line}
-            price={priceByItemId.get(line.id) ?? null}
-            showEvidence={showEvidence}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CostLine({
-  line,
-  price,
-  showEvidence,
-}: {
-  line: BillableItem;
-  price: PricedLineItem | null;
-  showEvidence: boolean;
-}) {
-  const unitPrice = price?.unitPrice ?? null;
-  const lineTotal = formatLineTotal(line.quantity, unitPrice);
-  const isUnpriced = lineTotal === PRICE_UNAVAILABLE;
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_90px_110px_130px] items-center py-1">
-      <div>
-        {showEvidence && price ? (
-          <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            <Badge variant="outline" className="mr-1">
-              {price.confidence}
-            </Badge>
-            <span>source: {price.source}</span>
-            {price.unitPrice === null && price.unavailableReason ? (
-              <span> — {price.unavailableReason}</span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-      <div>
-        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-          {formatCostType(line.costType)}
-        </span>
-      </div>
-      <div className="tabular-nums">
-        <span className="font-medium">{line.quantity}</span>
-        <span className="ml-1 inline-flex items-center rounded-md border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-          {formatUnit(line.unit)}
         </span>
       </div>
       <div
