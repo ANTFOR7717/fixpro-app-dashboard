@@ -6,7 +6,7 @@ import type { estimateRequestTable } from '@/features/estimate/db/schema';
 import type { ParsedEnvelope } from '@/features/estimate/lib/envelope';
 import { formatPartyRole } from '@/features/estimate/lib/format';
 import { ItemsSection } from '@/features/estimate/components/items-section';
-import type { PricedLineItem } from '@/mastra/agents/billable-item-extractor.schema';
+import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
 
 type EstimateRow = typeof estimateRequestTable.$inferSelect;
 
@@ -165,9 +165,8 @@ function ItemsBlock({ envelope }: { envelope: ParsedEnvelope }) {
     );
   }
 
-  const items = envelope.envelope.items;
-  const prices: PricedLineItem[] =
-    envelope.kind === 'v2' ? envelope.envelope.prices : [];
+  const items = envelope.kind === 'v3' ? envelope.lines : envelope.items;
+  const prices: PricedLineItem[] = envelope.prices;
 
   return <ItemsSection items={items} prices={prices} />;
 }

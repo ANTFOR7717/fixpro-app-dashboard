@@ -1,10 +1,16 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
-import { and, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { mastra } from "@/mastra";
+import { mastra } from "@/features/estimate-extraction-pipeline";
+import {
+  SUMMARY_ENVELOPE_KIND,
+  SUMMARY_ENVELOPE_VERSION_3,
+  type SummaryEnvelopeV3,
+} from "@/features/estimate/lib/envelope";
 import { estimateRequestTable } from "../db/schema";
+import { classifyError } from "./classify-error";
 
 interface TriggerSummarizeEstimateParams {
   estimateRequestId: string;
@@ -12,36 +18,73 @@ interface TriggerSummarizeEstimateParams {
   errorLabel?: string;
 }
 
+/**
+ * THE SINGLE WRITER of estimate-row state (responsibility #4). The AI
+ * pipeline (`mastra.getWorkflow('summarize-estimate')`, i.e. `pipeline.ts`)
+ * is pure — it returns `{ lines, prices }` or its run fails — and this
+ * function owns the entire persistence lifecycle:
+ *
+ *   processing → run the pipeline once → completed (v3 envelope)
+ *                                      | failed   (classified message)
+ *
+ * Nothing else writes this row during a run.
+ */
 export function triggerSummarizeEstimate({
   estimateRequestId,
   fileUrl,
   errorLabel = "AI Pipeline Error",
 }: TriggerSummarizeEstimateParams): void {
   after(async () => {
+    const rowFilter = eq(estimateRequestTable.id, estimateRequestId);
     try {
+      const [row] = await db
+        .select({ zipCode: estimateRequestTable.zipCode })
+        .from(estimateRequestTable)
+        .where(rowFilter);
+
+      await db
+        .update(estimateRequestTable)
+        .set({ status: "processing", errorMessage: null })
+        .where(rowFilter);
+
       const workflow = mastra.getWorkflow("summarize-estimate");
       const run = await workflow.createRun();
       const result = await run.start({
-        inputData: { estimateRequestId, fileUrl },
+        inputData: { estimateRequestId, fileUrl, zipCode: row?.zipCode ?? "" },
       });
-      if (result.status !== "success") {
-        // persistFailureStep already wrote status='failed' + errorMessage.
+
+      if (result.status === "success") {
+        const envelope: SummaryEnvelopeV3 = {
+          kind: SUMMARY_ENVELOPE_KIND,
+          version: SUMMARY_ENVELOPE_VERSION_3,
+          lines: result.result.lines,
+          prices: result.result.prices,
+        };
+        await db
+          .update(estimateRequestTable)
+          .set({
+            summary: JSON.stringify(envelope),
+            status: "completed",
+            errorMessage: null,
+          })
+          .where(rowFilter);
+      } else {
         console.error(`${errorLabel}: workflow ended non-success:`, result.status);
+        const stepError =
+          result.status === "failed"
+            ? Object.values(result.steps).find((s) => s.status === "failed")?.error
+            : undefined;
+        await db
+          .update(estimateRequestTable)
+          .set({ status: "failed", errorMessage: classifyError(stepError) })
+          .where(rowFilter);
       }
     } catch (error) {
       console.error(`${errorLabel}:`, error);
-      // Backstop: write failed state only if the workflow threw past its own catch.
-      // Guarded with status != 'completed' so a late throw cannot clobber a row that
-      // persistSuccessStep already wrote successfully.
       await db
         .update(estimateRequestTable)
-        .set({ status: "failed", errorMessage: "AI processing failed. Please retry." })
-        .where(
-          and(
-            eq(estimateRequestTable.id, estimateRequestId),
-            ne(estimateRequestTable.status, "completed"),
-          ),
-        );
+        .set({ status: "failed", errorMessage: classifyError(error) })
+        .where(rowFilter);
     }
     revalidatePath("/dashboard");
   });
