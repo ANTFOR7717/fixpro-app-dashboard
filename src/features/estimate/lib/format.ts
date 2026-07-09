@@ -97,18 +97,15 @@ export function formatTradeLabel(trade: string): string {
 /**
  * Renderer-side noun-phrase title for a billable item.
  *
- * Post-PR #13 the model emits `scope` as a Title-Cased noun phrase
- * (e.g. "Damaged Drywall Section", "GFCI Receptacle"). The renderer
- * does NOT invent a verb prefix and does NOT append a disambiguation
- * suffix — those were the v1 plan's rules and they drifted from the
- * prototype. The renderer's job is consistent Title Casing with an
- * acronym allowlist so a downcased "gfci" or "nec" still renders
- * correctly.
+ * The model emits `scope` as a Title-Cased noun phrase (e.g. "Damaged
+ * Drywall Section", "GFCI Receptacle"). The renderer's job is consistent
+ * Title Casing with an acronym allowlist so a downcased "gfci" or "nec"
+ * still renders correctly.
  *
  * Acronyms are intentionally a small explicit set: every entry is one
  * the extractor prompt tells the model to use in the noun phrase.
  * Adding a new acronym is a one-line change here. The set lives in
- * `format.ts` (not in the agent's `item-heuristics.ts`) because acronym
+ * `format.ts` (not in the extraction module) because acronym
  * preservation is a renderer-side concern: the schema stores the raw
  * string the model produced, and the renderer is what the user sees.
  */
@@ -134,9 +131,8 @@ export function formatScope(scope: string): string {
 
 /**
  * Labor-row noun suffix for the two actions that ever produce a
- * material+labor split (`ACTION_COST_PROFILE` in `agent-rules.ts`).
- * Deliberately a NOUN ("Installation"/"Replacement"), not a verb
- * ("Install"/"Replace") — see `formatItemTitle` below for why.
+ * material+labor split. Deliberately a NOUN ("Installation"/"Replacement"),
+ * not a verb ("Install"/"Replace") — see `formatItemTitle` below for why.
  */
 const LABOR_SPLIT_SUFFIX: Partial<Record<string, string>> = {
   install: 'Installation',
@@ -144,26 +140,21 @@ const LABOR_SPLIT_SUFFIX: Partial<Record<string, string>> = {
 };
 
 /**
- * Renderer-side title for a billable item's row, differentiating a split
+ * Renderer-side title for a billable line's row, differentiating a split
  * pair's Material and Labor rows without an action-verb prefix.
  *
- * `merge-items.ts` clones the entire item — including `scope` — onto
- * both halves of an install/replace split, so both rows previously
- * called `formatScope(item.scope)` on the identical string: same bold
- * title on both rows, nothing but the small MATERIAL/LABOR badge to tell
- * them apart. This reads as duplicated, undifferentiated output.
+ * The classification module clones the entire work item — including
+ * `scope` — onto both halves of an install/replace split, so both rows
+ * would otherwise call `formatScope(scope)` on the identical string: same
+ * bold title on both rows, nothing but the small MATERIAL/LABOR badge to
+ * tell them apart. Fix is a trailing NOUN qualifier on the labor half only
+ * ("Wood Siding Board Replacement" vs "Wood Siding Board") — NOT an
+ * action-verb prefix, since a verb prefix was previously tried and
+ * dropped for drifting from the report's product-style naming.
  *
- * Fix is a trailing NOUN qualifier on the labor half only ("Wood Siding
- * Board Replacement" vs "Wood Siding Board") — NOT an action-verb prefix.
- * `formatScope`'s own doc comment above records that a past PR (#13)
- * deliberately removed a verb-prefix behavior "because it drifted from
- * the prototype"; a noun suffix is an additive, distinct concern from
- * that removed behavior, not a reintroduction of it.
- *
- * Labor-only actions (repair, service, evaluate, remove — see
- * `ACTION_COST_PROFILE`) have no material counterpart to differentiate
- * against, so they get no suffix and render exactly as `formatScope`
- * alone would produce, unchanged from today.
+ * Labor-only actions (repair, service, evaluate, remove) have no material
+ * counterpart to differentiate against, so they get no suffix and render
+ * exactly as `formatScope` alone would produce.
  */
 export function formatItemTitle(
   scope: string,

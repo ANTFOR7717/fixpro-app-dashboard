@@ -14,13 +14,15 @@ import {
   formatTradeLabel,
   formatUnit,
 } from '@/features/estimate/lib/format';
-import type {
-  BillableItem,
-  PricedLineItem,
-} from '@/mastra/agents/billable-item-extractor.schema';
+import type { LegacyBillableItem } from '@/features/estimate/lib/envelope';
+import type { BillableLine } from '@/features/estimate-extraction-pipeline/classification';
+import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
+
+/** v3 lines and legacy v1/v2 items render through the same rows. */
+type RenderableItem = LegacyBillableItem | BillableLine;
 
 interface ItemsSectionProps {
-  items: BillableItem[];
+  items: RenderableItem[];
   prices: PricedLineItem[];
 }
 
@@ -53,7 +55,7 @@ export function ItemsSection({ items, prices }: ItemsSectionProps) {
 
   // Group items by `trade`, preserving order of first appearance.
   const groups = useMemo(() => {
-    const byTrade = new Map<string, BillableItem[]>();
+    const byTrade = new Map<string, RenderableItem[]>();
     for (const item of items) {
       const list = byTrade.get(item.trade);
       if (list) list.push(item);
@@ -91,8 +93,8 @@ export function ItemsSection({ items, prices }: ItemsSectionProps) {
         <div>
           <h2 className="text-lg font-semibold">Billable Items</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Grouped by Trade. Client Total is Quantity × Unit Price. Install
-            and Replace Items are Split into Material and Labor Lines.
+            Grouped by Trade. Client Total is Quantity × Unit Price. Labor is
+            always measured in Hours.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
@@ -154,7 +156,7 @@ function TradeGroup({
   showEvidence,
 }: {
   trade: string;
-  groupItems: BillableItem[];
+  groupItems: RenderableItem[];
   groupSubtotal: number;
   priceByItemId: Map<string, PricedLineItem>;
   showSource: boolean;
@@ -195,7 +197,7 @@ function ItemRow({
   showSource,
   showEvidence,
 }: {
-  item: BillableItem;
+  item: RenderableItem;
   price: PricedLineItem | null;
   showSource: boolean;
   showEvidence: boolean;
