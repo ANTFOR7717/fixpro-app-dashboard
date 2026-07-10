@@ -27,6 +27,7 @@
     "@better-auth/infra": "0.1.13",
     "@hookform/resolvers": "^5.0.1",
     "@mastra/core": "^1.37.1",
+    "@mastra/loggers": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",

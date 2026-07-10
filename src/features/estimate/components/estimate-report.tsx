@@ -23,15 +23,17 @@ interface EstimateReportProps {
  *   ────────────────────────────────────────────────────────
  *   Property                               Parties  [Submitted by …]
  *   ────────────────────────────────────────────────────────
- *   Billable items                          [toggles]
- *     INTERIOR · #item-001
- *     Replace damaged drywall section            qty × $unit
- *     Location: north wall, primary bedroom        = $line
- *     "<sourceQuote>" (p. 14)                    (toggleable)
- *     [confidence] source: <source>              (toggleable)
+ *   Billable Items                          [toggles]
+ *     INTERIOR · 2 Items          Group Subtotal: $X,XXX.00
+ *     Damaged Drywall Section          MATERIAL   32 SF   $480.00
+ *       north wall, primary bedroom
+ *       "<sourceQuote>" (p. 14)                  (toggleable)
+ *       [confidence] source: <source>            (toggleable)
+ *     Drywall Repaint                     LABOR   3.5 HRS  $265.00
  *   ────────────────────────────────────────────────────────
- *                                          Subtotal: $X,XXX.00
- *                                          Unpriced items: N
+ *                                  Subtotal (Priced Lines): $X,XXX.00
+ *                                          Unpriced Items: N
+ *                                  Estimated Client Total: $X,XXX.00
  *   ────────────────────────────────────────────────────────
  *   Footer (AI-assisted disclaimer)
  */

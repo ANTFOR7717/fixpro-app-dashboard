@@ -1,4 +1,4 @@
-import type { Action } from '../extraction/schema';
+import type { Action } from '../extraction';
 import type { CostType } from './schema';
 
 /**

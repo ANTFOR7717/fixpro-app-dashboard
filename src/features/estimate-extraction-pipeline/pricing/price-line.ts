@@ -10,6 +10,10 @@ import {
 } from './schema';
 import { roundToQuarter } from '../shared/quarter-hour';
 import { pricingBasisFor } from '../classification';
+import { createModuleLogger } from '../shared/logger';
+
+/** Module-scoped: constructed once, not per line priced. */
+const log = createModuleLogger('pricing-fanout');
 
 /**
  * Price ONE billable line. Internal step — `pricing/workflow.ts` is the
@@ -29,8 +33,9 @@ import { pricingBasisFor } from '../classification';
  * live: the `mastra` context Mastra injects into a step's `execute` is
  * `undefined` for steps of an unregistered/standalone workflow run via
  * `.createRun()` directly. This step therefore never reads `mastra` from
- * its execute context — it uses plain `console.warn` for the one thing
- * that would otherwise have needed it (logging a per-line failure).
+ * its execute context — the module-scoped `log` above (an SDK
+ * `createLogger` instance, not the execute-context one) covers the one
+ * thing that would otherwise have needed it.
  */
 export const priceLineStep = createStep({
   id: 'price-line',
@@ -112,7 +117,7 @@ export const priceLineStep = createStep({
         },
       };
     } catch (e) {
-      console.warn('[price-line] per-line failure', {
+      log.warn('[price-line] per-line failure', {
         estimateRequestId,
         itemId: line.id,
         error: e instanceof Error ? e.message : String(e),
