@@ -1,10 +1,10 @@
-import { billableLineSchema, type BillableLine, type PendingLine } from '../classification';
+import { type BillableLine, type PendingLine } from '../classification';
 import { pricedLineItemSchema, type PricedLineItem } from './schema';
 import { pricingFanoutWorkflow } from './workflow';
 import { itemPricerAgent } from './agent';
 
 export type { PricedLineItem };
-export { pricedLineItemSchema, billableLineSchema };
+export { pricedLineItemSchema };
 /** Re-exported for Studio registration ONLY — no module calls this directly. */
 export { itemPricerAgent };
 

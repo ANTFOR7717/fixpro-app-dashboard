@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TRADE, ACTION, EXTENT_UNIT } from '../extraction/schema';
+import { TRADE, ACTION, EXTENT_UNIT } from '../extraction';
 
 export const COST_TYPE = ['labor', 'material'] as const;
 export type CostType = (typeof COST_TYPE)[number];

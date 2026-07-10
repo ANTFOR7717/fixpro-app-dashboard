@@ -1,10 +1,23 @@
 import { RequestContext } from '@mastra/core/request-context';
 import { billableItemExtractorAgent } from './agent';
+import { extractionConsistencyScorer } from './scorer';
 import { workItemExtractionSchema, type ExtractedWorkItem } from './schema';
 
+/**
+ * THE DOOR — extraction's complete public contract. Everything a consumer
+ * may depend on (the entry-point function, the output type, the enum
+ * value lists and schema downstream modules build their own contracts
+ * from) is exported here. No file outside this folder imports a deeper
+ * path — the boundary grep in AGENTS.md enforces this with zero
+ * exceptions.
+ */
+export { TRADE, ACTION, EXTENT_UNIT, extractedWorkItemSchema, type Action } from './schema';
 export type { ExtractedWorkItem };
-/** Re-exported for Studio registration ONLY — no module calls this directly. */
-export { billableItemExtractorAgent };
+/**
+ * Re-exported for Mastra-instance registration ONLY — no module calls
+ * these directly.
+ */
+export { billableItemExtractorAgent, extractionConsistencyScorer };
 
 export interface ExtractWorkItemsInput {
   estimateRequestId: string;

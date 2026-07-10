@@ -1,7 +1,6 @@
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import { extractWorkItems } from './extraction';
-import { extractedWorkItemSchema } from './extraction/schema';
+import { extractWorkItems, extractedWorkItemSchema } from './extraction';
 import { classifyLines, billableLineSchema, pendingLineSchema } from './classification';
 import { priceLines, pricedLineItemSchema } from './pricing';
 

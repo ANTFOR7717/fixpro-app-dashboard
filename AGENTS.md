@@ -88,9 +88,32 @@ Non-trivial features should follow the planning workflow:
 - Next.js 16 (uses `after()` for post-response background work; no `next lint`).
 - Drizzle ORM 0.45.x with Postgres. Migrations live in `drizzle/`; the source
   of truth schema is re-exported from `src/db/schema.ts`.
-- Mastra `@mastra/core@1.32.x` for AI workflows. Prefer documented patterns:
-  per-step `retries`, resilient-step returns + `.branch()` for failure
-  routing, and `run.start().status` inspection over `try/catch`.
+- Mastra `@mastra/core` for AI workflows (version: see `package.json` —
+  do not hardcode a version number here; it will go stale at the next
+  bump). The AI pipeline lives at
+  `src/features/estimate-extraction-pipeline/` as three one-door modules
+  (`extraction/`, `classification/`, `pricing/`) plus a logic-free
+  composition root (`pipeline.ts`). Rules, mechanically checked:
+  - Only a module's `index.ts` may be imported from outside its folder:
+    ```sh
+    PKG=src/features/estimate-extraction-pipeline
+    grep -rn "from '.*\/extraction\/\(schema\|agent\|scorer\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/extraction/"
+    grep -rn "from '.*\/classification\/\(schema\|rules\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/classification/"
+    grep -rn "from '.*\/pricing\/\(schema\|agent\|price-line\|workflow\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/pricing/"
+    ```
+    All three must return zero results.
+  - The pipeline is pure: it never imports `@/db` or
+    `@/features/estimate/`. All estimate-row DB writes live in the single
+    caller, `src/features/estimate/lib/workflow.ts`.
+  - Failure model: steps THROW (per-step `retries` re-run them); the
+    caller inspects `run.start().status`. Do NOT reintroduce in-workflow
+    persistence or `.branch()` failure routing — both were deliberately
+    retired.
+  - Code that runs outside a registered step's execute-context (e.g.
+    pricing's internal fan-out) has NO working `mastra.getLogger()`/
+    `mastra.getAgent()` — live-verified crash. Use
+    `createModuleLogger(name)` from `shared/logger.ts` instead of
+    `console.*` or a `mastra` context call.
 - pnpm is the package manager.
 - `react-hot-toast` is the canonical action-feedback channel.
 
@@ -101,4 +124,6 @@ pnpm db:generate        # generate drizzle migration from schema diff
 pnpm db:migrate         # apply pending migrations to the dev DB
 pnpm exec tsc --noEmit  # typecheck
 pnpm exec eslint <path> # lint specific files (project-level pnpm lint is broken)
+pnpm mastra:dev         # Mastra Studio, pointed at the pipeline feature dir
+pnpm mastra:build       # Mastra build (same --dir)
 ```

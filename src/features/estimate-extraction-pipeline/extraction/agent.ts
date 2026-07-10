@@ -89,16 +89,39 @@ FIELDS YOU MUST PRODUCE PER ITEM
   phrase, omit the item rather than emit a one-word category label.
 - location: verbatim location language from the report. e.g. "Kitchen",
   "Roof — north slope", "Basement — northeast corner".
-- extent: REQUIRED object { quantity, unit }. The physical extent of the
-  work: how much of the thing there is, in the unit that material is sold
-  or measured in (ea = discrete purchasable component, lf = linear feet,
-  sf = square feet, cy = cubic yards). Count rules, in order:
+- extent: REQUIRED object { quantity, unit }. unit is the unit REAL
+  CONTRACTORS use to quote that TYPE of material — this is a fact about
+  the trade, not something the report needs to state explicitly. Do NOT
+  default to "ea" just because no measurement is given in the text.
+    - AREA-measured materials (siding, drywall, roofing/shingles,
+      flooring, subfloor, sheathing, insulation, stucco, plaster) ->
+      "sf", even with no square footage stated in the report.
+    - LENGTH-measured materials (trim, fascia, soffit, gutter,
+      downspout, fencing, railing, baseboard, casing, molding,
+      flashing) -> "lf", even with no footage stated.
+    - Bulk material volume (concrete, fill dirt) -> "cy" when the report
+      gives a volume.
+    - Genuinely discrete, individually-purchased items (a receptacle, a
+      breaker, a valve, a damper door, a water heater, a single fixture)
+      -> "ea". Correct ONLY for something bought and counted as one
+      whole unit — never for a material sold by the square or linear
+      foot.
+  Count rules, in order:
     1. Specific digit ("3 shingles", "20% of shingles" -> 20): that number.
     2. Written-out number ("two outlets"): that number.
     3. "both" -> 2.
     4. "all" / "every" / "each" / "the remaining" -> 1 (the whole set; the
        contractor prices the full assembly).
     5. No count word for a discrete component -> { quantity: 1, unit: "ea" }.
+  BAD -> GOOD:
+    "damaged wood siding" + unit "ea" -> unit "sf"
+    "loose exterior trim" + unit "ea" -> unit "lf"
+    "leaning chimney structure" (a whole-structure repair, not sold by
+      the foot) -> unit "ea" is correct here
+  If a candidate names TWO different physical components joined by
+  "or"/"and" (e.g. "trim or wood siding"), they almost always have
+  DIFFERENT correct units — split into TWO separate items, one per
+  component, each with its own scope/extent.
   Better to overbill than underbill: prefer the higher defensible reading.
   NEVER drop an item because the count is fuzzy. NEVER invent a
   measurement the report does not support.

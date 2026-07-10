@@ -1,5 +1,6 @@
 import { Mastra } from '@mastra/core/mastra';
-import { billableItemExtractorAgent } from './extraction';
+import { PinoLogger } from '@mastra/loggers';
+import { billableItemExtractorAgent, extractionConsistencyScorer } from './extraction';
 import { itemPricerAgent } from './pricing';
 import { summarizeEstimateWorkflow } from './pipeline';
 
@@ -10,11 +11,20 @@ import { summarizeEstimateWorkflow } from './pipeline';
  * boundary, not a peer-module dependency. Nothing here calls `.generate()`
  * on either agent; that only ever happens inside extraction/index.ts and
  * pricing/price-line.ts respectively.
+ *
+ * `logger` is explicit rather than left to Mastra's bare unnamed default:
+ * without it, every internally-emitted log line (agent runs, scorer runs,
+ * framework warnings like "Storage not found, skipping score validation
+ * and saving") prints with no name/component context at all. `PinoLogger`
+ * is the logger Mastra's own docs recommend for this — structured,
+ * leveled, pretty-printed — not a hand-rolled formatter.
  */
 export const mastra = new Mastra({
   agents: {
     'billable-item-extractor': billableItemExtractorAgent,
     'item-pricer': itemPricerAgent,
   },
+  scorers: { 'extraction-consistency': extractionConsistencyScorer },
   workflows: { 'summarize-estimate': summarizeEstimateWorkflow },
+  logger: new PinoLogger({ name: 'estimate-extraction-pipeline' }),
 });
