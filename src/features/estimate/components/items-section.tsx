@@ -17,6 +17,7 @@ import {
 import type { LegacyBillableItem } from '@/features/estimate/lib/envelope';
 import type { BillableLine } from '@/features/estimate-extraction-pipeline/classification';
 import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
+import type { ParsedDocument } from '@/features/estimate-extraction-pipeline/document';
 
 /** v3 lines and legacy v1/v2 items render through the same rows. */
 type RenderableItem = LegacyBillableItem | BillableLine;
@@ -24,29 +25,32 @@ type RenderableItem = LegacyBillableItem | BillableLine;
 interface ItemsSectionProps {
   items: RenderableItem[];
   prices: PricedLineItem[];
+  parsedDocument: ParsedDocument;
 }
 
 /**
- * Renders the "Billable items" block of the report with two viewer-side
+ * Renders the "Billable items" block of the report with three viewer-side
  * toggles:
  *
  *   - "Show source quote" — controls the italic verbatim excerpt from the
  *     inspection report (and its page hint).
  *   - "Show pricing evidence" — controls the confidence badge + source
  *     label + unavailable-reason annotation on each line.
+ *   - "Show debug JSON" — controls one whole-document raw JSON view: the
+ *     page-level parsed document. Nothing per-line-item.
  *
- * Toggle state is intentionally per-render and not persisted. Both toggles
- * default to OFF so the report reads as a clean invoice by default; users
- * can opt into auditable evidence (source quote, pricing rationale) when
- * needed.
+ * Toggle state is intentionally per-render and not persisted. All three
+ * toggles default to OFF so the report reads as a clean invoice by
+ * default; users can opt into auditable/debug detail when needed.
  *
  * This is a client component because the toggles need local state; the
  * parent `EstimateReport` stays a server component and just passes the
  * already-parsed envelope contents through.
  */
-export function ItemsSection({ items, prices }: ItemsSectionProps) {
+export function ItemsSection({ items, prices, parsedDocument }: ItemsSectionProps) {
   const [showSource, setShowSource] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
 
   const priceByItemId = useMemo(
     () => new Map(prices.map((p) => [p.itemId, p])),
@@ -86,6 +90,7 @@ export function ItemsSection({ items, prices }: ItemsSectionProps) {
 
   const sourceToggleId = useId();
   const evidenceToggleId = useId();
+  const debugToggleId = useId();
 
   return (
     <section>
@@ -120,8 +125,31 @@ export function ItemsSection({ items, prices }: ItemsSectionProps) {
             />
             <span>Show Pricing Evidence</span>
           </label>
+          <label
+            htmlFor={debugToggleId}
+            className="flex cursor-pointer items-center gap-2"
+          >
+            <Switch
+              id={debugToggleId}
+              checked={showDebug}
+              onCheckedChange={setShowDebug}
+            />
+            <span>Show Debug JSON</span>
+          </label>
         </div>
       </div>
+      {showDebug ? (
+        <div className="mb-4 space-y-3">
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Parsed Document (page-level)
+            </div>
+            <pre className="max-h-64 overflow-auto rounded bg-muted p-3 text-xs">
+              {JSON.stringify(parsedDocument, null, 2)}
+            </pre>
+          </div>
+        </div>
+      ) : null}
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No billable items were extracted from this report.
@@ -208,8 +236,10 @@ function ItemRow({
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_90px_110px_130px] items-center border-t px-4 py-3 text-sm">
       <div>
-        <div className="font-medium leading-snug">
-          {formatItemTitle(item.scope, item.action, item.costType)}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="font-medium leading-snug">
+            {formatItemTitle(item.scope, item.action, item.costType)}
+          </div>
         </div>
         <div className="text-xs text-muted-foreground">
           {formatLocation(item.location)}

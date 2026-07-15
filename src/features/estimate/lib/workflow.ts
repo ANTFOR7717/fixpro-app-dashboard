@@ -59,6 +59,7 @@ export function triggerSummarizeEstimate({
           version: SUMMARY_ENVELOPE_VERSION_3,
           lines: result.result.lines,
           prices: result.result.prices,
+          parsedDocument: result.result.parsedDocument,
         };
         await db
           .update(estimateRequestTable)

@@ -1,15 +1,13 @@
 import { createStep } from '@mastra/core/workflows';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
-import { billableLineSchema, pendingLineSchema, type BillableLine } from '../classification';
+import { billableLineSchema } from '../classification';
 import { itemPricerAgent } from './agent';
 import {
   laborPriceResponseSchema,
   materialPriceResponseSchema,
   pricedLineItemSchema,
 } from './schema';
-import { roundToQuarter } from '../shared/quarter-hour';
-import { pricingBasisFor } from '../classification';
 import { createModuleLogger } from '../shared/logger';
 
 /** Module-scoped: constructed once, not per line priced. */
@@ -19,13 +17,11 @@ const log = createModuleLogger('pricing-fanout');
  * Price ONE billable line. Internal step — `pricing/workflow.ts` is the
  * only thing that runs this, via `.foreach`.
  *
- * Resilience: a per-line failure records a 'lookup-failed' price and a
- * fallback-complete line rather than throwing, so one bad line never fails
- * the whole `.foreach` batch.
- *
- * Labor-hours resolution: inspector-stated (already on the pending line) →
- * pricer's estimatedHours, quarter-rounded → neither present → 1 hour
- * fallback with a null price (never a fabricated total).
+ * Resilience: a per-line failure records a 'lookup-failed' price rather
+ * than throwing, so one bad line never fails the whole `.foreach` batch.
+ * The line itself passes through completely unchanged in both the
+ * success and failure paths — classification already gave it a real,
+ * resolved quantity/hours; pricing only ever adds a price alongside it.
  *
  * This step runs inside `pricingFanoutWorkflow`, which is deliberately
  * NEVER registered on the top-level `Mastra` instance (pricing's fan-out
@@ -42,7 +38,7 @@ export const priceLineStep = createStep({
   inputSchema: z.object({
     estimateRequestId: z.string(),
     zipCode: z.string(),
-    line: pendingLineSchema,
+    line: billableLineSchema,
   }),
   outputSchema: z.object({
     line: billableLineSchema,
@@ -50,7 +46,6 @@ export const priceLineStep = createStep({
   }),
   execute: async ({ inputData }) => {
     const { line, zipCode, estimateRequestId } = inputData;
-    const basis = pricingBasisFor(line.action, line.costType);
 
     const userText =
       'Price ONE billable line. Return JSON matching the schema.\n\n' +
@@ -60,10 +55,10 @@ export const priceLineStep = createStep({
       `scope: ${line.scope}\n` +
       `location: ${line.location}\n` +
       `costType: ${line.costType}\n` +
-      `pricingBasis: ${basis}\n` +
+      `pricingBasis: ${line.pricingBasis}\n` +
       (line.costType === 'material'
         ? `extent: ${line.quantity} ${line.unit}\n`
-        : `inspectorHours: ${line.quantity ?? 'none'}\n`) +
+        : `hours: ${line.quantity}\n`) +
       `sourceQuote: ${JSON.stringify(line.sourceQuote)}`;
 
     try {
@@ -98,15 +93,8 @@ export const priceLineStep = createStep({
       );
       const l = result.object;
       if (!l) throw new Error('pricer returned no structured object');
-
-      const resolved: BillableLine =
-        line.quantity !== null
-          ? { ...line, quantity: line.quantity, hoursSource: 'inspector' }
-          : l.estimatedHours !== null
-            ? { ...line, quantity: roundToQuarter(l.estimatedHours), hoursSource: 'estimated' }
-            : { ...line, quantity: 1, hoursSource: 'fallback' };
       return {
-        line: resolved,
+        line,
         price: {
           itemId: line.id,
           unitPrice: l.hourlyRate,
@@ -122,16 +110,8 @@ export const priceLineStep = createStep({
         itemId: line.id,
         error: e instanceof Error ? e.message : String(e),
       });
-      const fallbackLine: BillableLine =
-        line.costType === 'labor'
-          ? {
-              ...line,
-              quantity: line.quantity ?? 1,
-              hoursSource: line.quantity !== null ? 'inspector' : 'fallback',
-            }
-          : line;
       return {
-        line: fallbackLine,
+        line,
         price: {
           itemId: line.id,
           unitPrice: null,

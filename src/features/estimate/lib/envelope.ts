@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { billableLineSchema, type BillableLine } from '@/features/estimate-extraction-pipeline/classification';
 import { pricedLineItemSchema, type PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
+import {
+  parsedDocumentSchema,
+  type ParsedDocument,
+} from '@/features/estimate-extraction-pipeline/document';
 
 /**
  * LEGACY (v1/v2) flat item shape, kept ONLY so rows persisted before this
@@ -55,6 +59,13 @@ export const summaryEnvelopeV3Schema = z.object({
   version: z.literal(SUMMARY_ENVELOPE_VERSION_3),
   lines: z.array(billableLineSchema),
   prices: z.array(pricedLineItemSchema),
+  /**
+   * `.default()`, not required — rows persisted before these fields
+   * existed have no such keys at all. Without a default, every existing
+   * v3 row would fail to parse (falling through to 'unparseable') the
+   * moment this ships.
+   */
+  parsedDocument: parsedDocumentSchema.default({ pages: [] }),
 });
 
 export type SummaryEnvelopeV3 = z.infer<typeof summaryEnvelopeV3Schema>;
@@ -76,7 +87,12 @@ export type SummaryEnvelopeV3 = z.infer<typeof summaryEnvelopeV3Schema>;
 export type ParsedEnvelope =
   | { kind: 'v1'; items: LegacyBillableItem[]; prices: [] }
   | { kind: 'v2'; items: LegacyBillableItem[]; prices: PricedLineItem[] }
-  | { kind: 'v3'; lines: BillableLine[]; prices: PricedLineItem[] }
+  | {
+      kind: 'v3';
+      lines: BillableLine[];
+      prices: PricedLineItem[];
+      parsedDocument: ParsedDocument;
+    }
   | { kind: 'unparseable'; raw: string }
   | { kind: 'absent' };
 
@@ -91,7 +107,14 @@ export function parseSummaryEnvelope(summary: string | null): ParsedEnvelope {
   }
 
   const v3 = summaryEnvelopeV3Schema.safeParse(json);
-  if (v3.success) return { kind: 'v3', lines: v3.data.lines, prices: v3.data.prices };
+  if (v3.success) {
+    return {
+      kind: 'v3',
+      lines: v3.data.lines,
+      prices: v3.data.prices,
+      parsedDocument: v3.data.parsedDocument,
+    };
+  }
 
   const v2 = summaryEnvelopeV2Schema.safeParse(json);
   if (v2.success) return { kind: 'v2', items: v2.data.items, prices: v2.data.prices };

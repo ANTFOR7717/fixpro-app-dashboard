@@ -169,8 +169,11 @@ function ItemsBlock({ envelope }: { envelope: ParsedEnvelope }) {
 
   const items = envelope.kind === 'v3' ? envelope.lines : envelope.items;
   const prices: PricedLineItem[] = envelope.prices;
+  const parsedDocument = envelope.kind === 'v3' ? envelope.parsedDocument : { pages: [] };
 
-  return <ItemsSection items={items} prices={prices} />;
+  return (
+    <ItemsSection items={items} prices={prices} parsedDocument={parsedDocument} />
+  );
 }
 
 function EmptyState({

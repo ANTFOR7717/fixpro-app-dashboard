@@ -1,4 +1,4 @@
-import { type BillableLine, type PendingLine } from '../classification';
+import { type BillableLine } from '../classification';
 import { pricedLineItemSchema, type PricedLineItem } from './schema';
 import { pricingFanoutWorkflow } from './workflow';
 import { itemPricerAgent } from './agent';
@@ -11,7 +11,7 @@ export { itemPricerAgent };
 export interface PriceLinesInput {
   estimateRequestId: string;
   zipCode: string;
-  lines: PendingLine[];
+  lines: BillableLine[];
 }
 
 export interface PriceLinesOutput {
