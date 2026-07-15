@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "implementation-planning": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:001e2db3aba80f04c646113567aa58355c485d85a1b4803c3f9cf62d90550d86",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "agy": [
+          "speckit.implementation-planning.route",
+          "speckit.implementation-planning.approve",
+          "speckit.implementation-planning.check-approved"
+        ],
+        "claude": [
+          "speckit.implementation-planning.route",
+          "speckit.implementation-planning.approve",
+          "speckit.implementation-planning.check-approved"
+        ],
+        "codex": [
+          "speckit.implementation-planning.route",
+          "speckit.implementation-planning.approve",
+          "speckit.implementation-planning.check-approved"
+        ],
+        "zed": [
+          "speckit.implementation-planning.route",
+          "speckit.implementation-planning.approve",
+          "speckit.implementation-planning.check-approved"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-07-15T07:13:43.828584+00:00"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+schema_version: "1.0"
+
+extension:
+  id: implementation-planning
+  name: "Implementation Planning (Whiteboard / Subagents Router)"
+  version: "1.0.0"
+  description: "Routes Spec Kit's post-tasks planning to whiteboarding or subagent-planning via planning-router, and gates /speckit-implement on explicit human approval of the resulting plan."
+  author: "personal"
+  license: MIT
+
+requires:
+  speckit_version: ">=0.12.0"
+  tools:
+    - name: git
+      required: false
+
+provides:
+  commands:
+    - name: speckit.implementation-planning.route
+      file: commands/speckit.implementation-planning.route.md
+      description: "Invoke planning-router with spec/plan/tasks context; route to whiteboarding or subagent-planning against a mechanically resolved target file."
+    - name: speckit.implementation-planning.approve
+      file: commands/speckit.implementation-planning.approve.md
+      description: "Record explicit human approval of the routed plan into .specify/feature.json. Invoked after approval is given in conversation, not on a lifecycle hook."
+    - name: speckit.implementation-planning.check-approved
+      file: commands/speckit.implementation-planning.check-approved.md
+      description: "Gate: refuse to let /speckit-implement proceed unless plan_approved is true in .specify/feature.json."
+
+hooks:
+  after_tasks:
+    command: speckit.implementation-planning.route
+    optional: false
+    description: "Route to whiteboarding or subagent-planning immediately after tasks.md is generated."
+  before_implement:
+    command: speckit.implementation-planning.check-approved
+    optional: false
+    description: "Block implementation until the routed plan has been explicitly approved."
+
+tags:
+  - "planning"
+  - "whiteboarding"
+  - "subagent-planning"
+  - "quality-gate"

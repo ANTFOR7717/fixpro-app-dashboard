@@ -3,7 +3,16 @@
  * composes these steps directly; nothing in this module calls
  * `.generate()`/`.stream()` by hand anywhere.
  */
-export { billableLineSchema, type BillableLine } from './schema';
+export {
+  billableLineSchema,
+  type BillableLine,
+  TRADE,
+  type Trade,
+  EXTENT_UNIT,
+  type ExtentUnit,
+  lineClassificationSchema,
+  type LineClassification,
+} from './schema';
 export {
   buildClassificationPrompt,
   lineClassifierAgentStep,

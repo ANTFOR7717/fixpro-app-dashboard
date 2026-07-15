@@ -1,0 +1,24 @@
+installed:
+- implementation-planning
+settings:
+  auto_execute_hooks: true
+hooks:
+  after_tasks:
+  - extension: implementation-planning
+    command: speckit.implementation-planning.route
+    enabled: true
+    optional: false
+    priority: 10
+    prompt: Execute speckit.implementation-planning.route?
+    description: Route to whiteboarding or subagent-planning immediately after tasks.md
+      is generated.
+    condition: null
+  before_implement:
+  - extension: implementation-planning
+    command: speckit.implementation-planning.check-approved
+    enabled: true
+    optional: false
+    priority: 10
+    prompt: Execute speckit.implementation-planning.check-approved?
+    description: Block implementation until the routed plan has been explicitly approved.
+    condition: null
