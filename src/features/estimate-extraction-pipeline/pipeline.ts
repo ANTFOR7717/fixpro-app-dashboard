@@ -1,11 +1,6 @@
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import {
-  buildExtractionPrompt,
-  findingExtractorAgentStep,
-  resolveFindingsStep,
-  meaningfulSentenceSchema,
-} from './extraction';
+import { buildExtractionPrompt, findingExtractorAgentStep } from './extraction';
 import {
   buildClassificationPrompt,
   lineClassifierAgentStep,
@@ -54,13 +49,11 @@ const priceStep = createStep({
     zipCode: z.string(),
     lines: z.array(billableLineSchema),
     parsedDocument: parsedDocumentSchema,
-    sentences: z.array(meaningfulSentenceSchema),
   }),
   outputSchema: z.object({
     lines: z.array(billableLineSchema),
     prices: z.array(pricedLineItemSchema),
     parsedDocument: parsedDocumentSchema,
-    sentences: z.array(meaningfulSentenceSchema),
   }),
   execute: async ({ inputData }) => {
     const priced = await priceLines({
@@ -71,7 +64,6 @@ const priceStep = createStep({
     return {
       ...priced,
       parsedDocument: inputData.parsedDocument,
-      sentences: inputData.sentences,
     };
   },
 });
@@ -91,7 +83,6 @@ export const summarizeEstimateWorkflow = createWorkflow({
     prompt: buildExtractionPrompt(inputData.parsedDocument),
   }))
   .then(findingExtractorAgentStep)
-  .then(resolveFindingsStep)
   // Build the classification prompt — same reasoning as above.
   .map(async ({ inputData }) => ({
     prompt: buildClassificationPrompt(inputData.findings),
@@ -101,14 +92,14 @@ export const summarizeEstimateWorkflow = createWorkflow({
   // was classifying (the classifier never re-echoes
   // action/scope/location/sourceQuote — buildLinesStep needs them).
   .map(async ({ inputData, getStepResult }) => ({
-    findings: getStepResult(resolveFindingsStep).findings,
+    findings: getStepResult(findingExtractorAgentStep).findings,
     classifications: inputData.lines,
   }))
   .then(buildLinesStep)
   // Recombine the built lines with everything priceStep needs that fell
   // out of the agent-step data flow: the workflow's own init data
-  // (estimateRequestId, zipCode) and the parsed document/sentences from
-  // several steps back.
+  // (estimateRequestId, zipCode) and the parsed document from several
+  // steps back.
   //
   // getInitData<...> uses an explicit inline type matching this
   // workflow's own declared inputSchema, NOT `typeof summarizeEstimateWorkflow`
@@ -121,13 +112,11 @@ export const summarizeEstimateWorkflow = createWorkflow({
   .map(async ({ inputData, getInitData, getStepResult }) => {
     const init = getInitData<{ estimateRequestId: string; zipCode: string; fileUrl: string }>();
     const { parsedDocument } = getStepResult(parseDocumentStep);
-    const { sentences } = getStepResult(resolveFindingsStep);
     return {
       estimateRequestId: init.estimateRequestId,
       zipCode: init.zipCode,
       lines: inputData.lines,
       parsedDocument,
-      sentences,
     };
   })
   .then(priceStep)

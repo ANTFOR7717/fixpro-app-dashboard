@@ -87,7 +87,7 @@ export const lineClassifierAgentStep = createStep({
  * (needed for action/scope/location/sourceQuote/pageHint, which the
  * classifier's response never re-echoes) — that combination happens in
  * the `.map()` immediately before this step in pipeline.ts, via
- * `getStepResult(resolveFindingsStep)`.
+ * `getStepResult(findingExtractorAgentStep)`.
  */
 export const buildLinesStep = createStep({
   id: 'build-lines',

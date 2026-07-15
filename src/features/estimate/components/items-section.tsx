@@ -18,7 +18,6 @@ import type { LegacyBillableItem } from '@/features/estimate/lib/envelope';
 import type { BillableLine } from '@/features/estimate-extraction-pipeline/classification';
 import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
 import type { ParsedDocument } from '@/features/estimate-extraction-pipeline/document';
-import type { MeaningfulSentence } from '@/features/estimate-extraction-pipeline/extraction';
 
 /** v3 lines and legacy v1/v2 items render through the same rows. */
 type RenderableItem = LegacyBillableItem | BillableLine;
@@ -27,7 +26,6 @@ interface ItemsSectionProps {
   items: RenderableItem[];
   prices: PricedLineItem[];
   parsedDocument: ParsedDocument;
-  sentences: MeaningfulSentence[];
 }
 
 /**
@@ -38,10 +36,8 @@ interface ItemsSectionProps {
  *     inspection report (and its page hint).
  *   - "Show pricing evidence" — controls the confidence badge + source
  *     label + unavailable-reason annotation on each line.
- *   - "Show debug JSON" — controls two whole-document raw JSON views: the
- *     page-level parsed document, and the sentences the extraction agent
- *     itself judged meaningful while reading the report. Nothing
- *     per-line-item.
+ *   - "Show debug JSON" — controls one whole-document raw JSON view: the
+ *     page-level parsed document. Nothing per-line-item.
  *
  * Toggle state is intentionally per-render and not persisted. All three
  * toggles default to OFF so the report reads as a clean invoice by
@@ -51,7 +47,7 @@ interface ItemsSectionProps {
  * parent `EstimateReport` stays a server component and just passes the
  * already-parsed envelope contents through.
  */
-export function ItemsSection({ items, prices, parsedDocument, sentences }: ItemsSectionProps) {
+export function ItemsSection({ items, prices, parsedDocument }: ItemsSectionProps) {
   const [showSource, setShowSource] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
@@ -150,14 +146,6 @@ export function ItemsSection({ items, prices, parsedDocument, sentences }: Items
             </div>
             <pre className="max-h-64 overflow-auto rounded bg-muted p-3 text-xs">
               {JSON.stringify(parsedDocument, null, 2)}
-            </pre>
-          </div>
-          <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Meaningful Sentences (Semantic Selection)
-            </div>
-            <pre className="max-h-64 overflow-auto rounded bg-muted p-3 text-xs">
-              {JSON.stringify(sentences, null, 2)}
             </pre>
           </div>
         </div>

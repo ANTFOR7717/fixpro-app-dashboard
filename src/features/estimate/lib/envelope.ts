@@ -5,10 +5,6 @@ import {
   parsedDocumentSchema,
   type ParsedDocument,
 } from '@/features/estimate-extraction-pipeline/document';
-import {
-  meaningfulSentenceSchema,
-  type MeaningfulSentence,
-} from '@/features/estimate-extraction-pipeline/extraction';
 
 /**
  * LEGACY (v1/v2) flat item shape, kept ONLY so rows persisted before this
@@ -70,11 +66,6 @@ export const summaryEnvelopeV3Schema = z.object({
    * moment this ships.
    */
   parsedDocument: parsedDocumentSchema.default({ pages: [] }),
-  /**
-   * `.default([])`, not required — rows persisted before this field
-   * existed (or under the old `chunks` key) have no such key at all.
-   */
-  sentences: z.array(meaningfulSentenceSchema).default([]),
 });
 
 export type SummaryEnvelopeV3 = z.infer<typeof summaryEnvelopeV3Schema>;
@@ -101,7 +92,6 @@ export type ParsedEnvelope =
       lines: BillableLine[];
       prices: PricedLineItem[];
       parsedDocument: ParsedDocument;
-      sentences: MeaningfulSentence[];
     }
   | { kind: 'unparseable'; raw: string }
   | { kind: 'absent' };
@@ -123,7 +113,6 @@ export function parseSummaryEnvelope(summary: string | null): ParsedEnvelope {
       lines: v3.data.lines,
       prices: v3.data.prices,
       parsedDocument: v3.data.parsedDocument,
-      sentences: v3.data.sentences,
     };
   }
 

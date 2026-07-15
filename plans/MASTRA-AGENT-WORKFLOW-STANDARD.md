@@ -172,7 +172,7 @@ this session, states that `stream.textStream` must be iterated for
 there is no `stream` object in application code to drain in the first
 place.
 
-## Rule 5 — One real transport risk that is NOT yet resolved by this document.
+## Rule 5 — Resolved: `createStep(agent, { structuredOutput })` always streams internally.
 
 This codebase previously hit a real, live-observed failure: `.generate()`
 (buffered) returned a `504 Gateway Timeout` from the model gateway on a
@@ -180,14 +180,15 @@ long-running, tool-calling agent call over a large document, while
 `.stream()` on the identical request succeeded, repeatably. That finding
 was directly reproduced this session, not guessed.
 
-**Unresolved as of this document:** no documentation fetched this session
-states whether `createStep(agent, { structuredOutput })` uses
-`.generate()` or `.stream()` internally. This must be verified with a
-live test against a real long-running call (the same class of call that
-previously timed out — the full extraction pass, and the
-tool-using classification pass) before this pattern is trusted for the
-`findingExtractorAgent`/`lineClassifierAgent` steps specifically. Do not
-assume either direction without a live check.
+**Resolved** (specs/001-extraction-mastra-standard-compliance/research.md
+R4): the compiled implementation of `createStepFromAgent`
+(`node_modules/@mastra/core/dist/chunk-CJAAPSS7.cjs`, ~line 16031) shows
+`createStep(agent, { structuredOutput })` always calls `.stream()`
+internally (`.streamLegacy()` for v1-spec models) — no code path in this
+function calls `.generate()`. The 504-timeout risk this rule originally
+flagged structurally cannot recur through this composition form,
+regardless of document length, for either the `findingExtractorAgent` or
+`lineClassifierAgent` steps.
 
 ## Enforcement
 

@@ -10,15 +10,16 @@ import { extractionConsistencyScorer } from './scorer';
  * domain-taxonomy judgment classification owns, not text extraction. It
  * does not summarize, advise, prioritize, price, or estimate hours.
  *
- * Internal to the extraction module — only extraction/index.ts calls
- * `.generate()` on this.
+ * Internal to the extraction module — only `extraction/index.ts` re-exports
+ * this; the framework itself calls `.stream()` internally when this agent
+ * is composed via `createStep(agent, { structuredOutput })` in steps.ts.
  */
 export const findingExtractorAgent = new Agent({
   id: 'finding-extractor',
   name: 'Inspection Finding Extractor',
   instructions: `
-You read a home inspection PDF and emit two things: (1) every sentence you
-find MEANINGFUL, and (2) every BILLABLE FINDING those sentences support.
+You read a home inspection PDF and emit every BILLABLE FINDING the
+inspector's own text supports.
 
 DEFINITION
 A "billable finding" is a discrete action a contractor would quote: a
@@ -30,34 +31,19 @@ finding. Background descriptions, condition observations, age statements,
 system overviews, and code-of-the-day commentary are NOT billable
 findings.
 
-SENTENCE SELECTION (do this first, as you read)
-Your message includes the full report, page by page. As you read it,
-identify every sentence meaningful enough that a billable finding can be
-inferred from it. Emit each one into "sentences":
-- "id": a stable id you invent, formatted "p{page}-{n}" where {n} counts
-  meaningful sentences found on that page starting at 1 (e.g. "p14-1",
-  "p14-2", "p15-1").
-- "pageNumber": the page it came from.
-- "text": the sentence copied VERBATIM from the source — do not paraphrase.
-- "reasoning": one line on why this sentence is meaningful.
-Do NOT emit descriptive, background, or condition-overview sentences —
-only ones a billable finding is actually inferable from.
-
-GROUNDING VIA YOUR OWN SENTENCE SELECTION
-"sourceSentenceId" must be the id of an entry YOU emitted in "sentences"
-above, in this same response. For every candidate finding:
-1. Confirm you already emitted a "sentences" entry naming both the defect
-   and the required action.
-2. Cite that entry's id as "sourceSentenceId".
-3. If you did not emit a supporting entry, do NOT emit the finding.
-Never invent a sentence id. Never cite an id whose text you have not
-actually confirmed supports the finding.
+GROUNDING
+For every finding you emit, "sourceQuote" must be the exact verbatim
+sentence (or clause) copied from the report that names both the defect
+and the required action — no paraphrase, no merging text from separate
+sentences, no invention. "pageHint" must be the page that quote actually
+appears on, formatted "p. {page}". If you cannot find a verbatim sentence
+in the report that supports a candidate finding, do NOT emit the finding.
 
 HARD RULES
-1. GROUNDED ONLY. Every emitted finding's "sourceSentenceId" must be an id
-   present in this same response's "sentences" array, and that entry's
-   text must actually name the defect and action you claim. No paraphrase,
-   no merging of separate entries, no inference.
+1. GROUNDED ONLY. Every emitted finding's "sourceQuote" must be copied
+   verbatim from the report and must actually name the defect and action
+   you claim. No paraphrase, no merging of separate sentences, no
+   inference.
 2. ONE FINDING PER FIX. If the inspector lists two distinct fixes (e.g.
    "replace the angle stop AND re-secure the supply line"), emit TWO
    findings. Do NOT split on "or"-worded uncertainty about which single
@@ -106,14 +92,14 @@ FIELDS YOU MUST PRODUCE PER FINDING
   that is not your job.
 - inspectorHours: hours as a number ONLY when the inspector explicitly
   stated an hour count. In every other case: null.
-- sourceSentenceId: the id of the entry in YOUR OWN "sentences" array that
+- sourceQuote: the exact verbatim sentence or clause from the report that
   names both the defect and the action for this finding.
+- pageHint: the page that quote appears on, formatted "p. {page}".
 
 OUTPUT FORMAT
 Return JSON matching the provided structured-output schema exactly. The
-schema contains "sentences" and "findings". If the report contains no
-billable findings, "findings" may be empty, but "sentences" should still
-reflect what you actually found meaningful.
+schema contains "findings". If the report contains no billable findings,
+"findings" may be empty.
 
 Do not include any commentary, explanation, preamble, or text outside the
 JSON.

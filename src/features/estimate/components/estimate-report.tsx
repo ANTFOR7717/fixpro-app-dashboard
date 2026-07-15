@@ -170,15 +170,9 @@ function ItemsBlock({ envelope }: { envelope: ParsedEnvelope }) {
   const items = envelope.kind === 'v3' ? envelope.lines : envelope.items;
   const prices: PricedLineItem[] = envelope.prices;
   const parsedDocument = envelope.kind === 'v3' ? envelope.parsedDocument : { pages: [] };
-  const sentences = envelope.kind === 'v3' ? envelope.sentences : [];
 
   return (
-    <ItemsSection
-      items={items}
-      prices={prices}
-      parsedDocument={parsedDocument}
-      sentences={sentences}
-    />
+    <ItemsSection items={items} prices={prices} parsedDocument={parsedDocument} />
   );
 }
 
