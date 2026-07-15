@@ -1,6 +1,6 @@
 import { createScorer } from '@mastra/core/evals';
 import { z } from 'zod';
-import { kiloGateway } from '../shared/gateway';
+import { pioneerGateway } from '../shared/gateway';
 
 /**
  * Background LLM-judge scorer for the billable-item extractor.
@@ -32,7 +32,7 @@ export const extractionConsistencyScorer = createScorer({
     '(sourceQuote supports scope/action/trade) and names exactly one ' +
     'physical component.',
   judge: {
-    model: kiloGateway('openai/gpt-5.4-mini'),
+    model: pioneerGateway.chat('claude-fable-5'),
     instructions:
       'You audit billable work items extracted from a home inspection ' +
       'report. You see ONLY the emitted items, never the source document. ' +

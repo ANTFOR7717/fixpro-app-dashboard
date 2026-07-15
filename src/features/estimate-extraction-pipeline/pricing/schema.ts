@@ -38,23 +38,13 @@ export const materialPriceResponseSchema = z
 
 export type MaterialPriceResponse = z.infer<typeof materialPriceResponseSchema>;
 
-/** Response for a LABOR line: an HOURLY RATE plus the hours the job takes. */
+/** Response for a LABOR line: an HOURLY RATE. Hours are classification's job now — every line pricing receives already has a real, resolved hour count. */
 export const laborPriceResponseSchema = z
   .object({
     hourlyRate: z.number().int().min(0).nullable(),
-    estimatedHours: z.number().positive().max(160).nullable(),
     ...priceEvidenceFields,
   })
-  .superRefine((r, ctx) => {
-    xorUnavailable(r.hourlyRate, r.unavailableReason, ctx);
-    if (r.hourlyRate !== null && r.estimatedHours === null) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['estimatedHours'],
-        message: 'estimatedHours is required when hourlyRate is returned',
-      });
-    }
-  });
+  .superRefine((r, ctx) => xorUnavailable(r.hourlyRate, r.unavailableReason, ctx));
 
 export type LaborPriceResponse = z.infer<typeof laborPriceResponseSchema>;
 

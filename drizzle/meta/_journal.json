@@ -43,6 +43,13 @@
       "when": 1780345425637,
       "tag": "0005_dashing_shiver_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783786053360,
+      "tag": "0006_enable_pgvector",
+      "breakpoints": true
     }
   ]
 }

@@ -91,17 +91,18 @@ Non-trivial features should follow the planning workflow:
 - Mastra `@mastra/core` for AI workflows (version: see `package.json` —
   do not hardcode a version number here; it will go stale at the next
   bump). The AI pipeline lives at
-  `src/features/estimate-extraction-pipeline/` as three one-door modules
-  (`extraction/`, `classification/`, `pricing/`) plus a logic-free
-  composition root (`pipeline.ts`). Rules, mechanically checked:
+  `src/features/estimate-extraction-pipeline/` as four one-door modules
+  (`document/`, `extraction/`, `classification/`, `pricing/`) plus a
+  logic-free composition root (`pipeline.ts`). Rules, mechanically checked:
   - Only a module's `index.ts` may be imported from outside its folder:
     ```sh
     PKG=src/features/estimate-extraction-pipeline
-    grep -rn "from '.*\/extraction\/\(schema\|agent\|scorer\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/extraction/"
-    grep -rn "from '.*\/classification\/\(schema\|rules\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/classification/"
+    grep -rn "from '.*\/document\/\(schema\|parse\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/document/"
+    grep -rn "from '.*\/extraction\/\(schema\|agent\|scorer\|steps\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/extraction/"
+    grep -rn "from '.*\/classification\/\(schema\|agent\|steps\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/classification/"
     grep -rn "from '.*\/pricing\/\(schema\|agent\|price-line\|workflow\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/pricing/"
     ```
-    All three must return zero results.
+    All four must return zero results.
   - The pipeline is pure: it never imports `@/db` or
     `@/features/estimate/`. All estimate-row DB writes live in the single
     caller, `src/features/estimate/lib/workflow.ts`.

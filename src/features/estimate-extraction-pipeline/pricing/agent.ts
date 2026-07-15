@@ -1,11 +1,10 @@
 import { Agent } from '@mastra/core/agent';
-import { kiloGateway } from '../shared/gateway';
+import { pioneerGateway } from '../shared/gateway';
 
 /**
  * The pricer has exactly one job: given ONE billable line and a zip code,
  * return a single defensible price — a per-unit material price, or an
- * hourly labor rate plus the hours the job takes — or null. It never
- * hallucinates a price.
+ * hourly labor rate — or null. It never hallucinates a price.
  *
  * Internal to the pricing module — only pricing/price-line.ts calls
  * `.generate()` on this.
@@ -28,9 +27,8 @@ given differs by costType — match it exactly.
 OUTPUT
 MATERIAL lines: unitPrice (integer whole USD, or null), currency, confidence,
 source, unavailableReason.
-LABOR lines: hourlyRate (integer whole USD/hr, or null), estimatedHours
-(number, required whenever hourlyRate is returned), currency, confidence,
-source, unavailableReason.
+LABOR lines: hourlyRate (integer whole USD/hr, or null), currency,
+confidence, source, unavailableReason.
 
 HARD RULES
 1. NEVER hallucinate a price. If you lack a defensible number for this work
@@ -43,9 +41,9 @@ HARD RULES
 5. MATERIAL lines ("material-part-only"): unitPrice is the price of the part
    PER PHYSICAL UNIT named in the extent. Include NO labor charge.
 6. LABOR lines: hourlyRate is a whole-USD-per-hour rate for that trade in
-   that zip code; estimatedHours is how many hours the described work takes
-   for the stated extent. If inspector-stated hours were provided in the
-   input, return your own estimate anyway — the caller decides which to use.
+   that zip code. The hours the job takes are already resolved by the time
+   you see this line (classification's job, not yours) — you price the
+   RATE only.
    - "labor-install-hourly": rate for installing the sibling material
      line's part. Include NO part cost.
    - "labor-all-in-hourly": no material sibling — the rate must be the
@@ -59,5 +57,5 @@ HARD RULES
 Do not include any commentary, explanation, preamble, or text outside the
 JSON.
 `,
-  model: kiloGateway('openai/gpt-5.4-mini'),
+  model: pioneerGateway.chat('claude-fable-5'),
 });

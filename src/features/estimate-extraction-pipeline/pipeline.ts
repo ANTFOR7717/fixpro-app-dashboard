@@ -1,84 +1,134 @@
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import { extractWorkItems, extractedWorkItemSchema } from './extraction';
-import { classifyLines, billableLineSchema, pendingLineSchema } from './classification';
+import {
+  buildExtractionPrompt,
+  findingExtractorAgentStep,
+  resolveFindingsStep,
+  meaningfulSentenceSchema,
+} from './extraction';
+import {
+  buildClassificationPrompt,
+  lineClassifierAgentStep,
+  buildLinesStep,
+  billableLineSchema,
+} from './classification';
 import { priceLines, pricedLineItemSchema } from './pricing';
+import { parsePdfFromUrl, parsedDocumentSchema } from './document';
 
 /**
- * The composition root. Every stage below is a one-line adapter calling
- * exactly one module's door function — this file contains NO business
- * logic. To understand what a stage DOES, read that module's index.ts.
+ * The composition root. Every agent call in this workflow is a native
+ * `createStep(agent, { structuredOutput })` step (extraction, classification)
+ * or an already-compliant `execute()`-based call for the one documented
+ * exception (pricing, which needs per-line conditional schema selection).
+ * No hand-rolled `.generate()`/`.stream()` orchestration anywhere in this
+ * file or the modules it composes. See
+ * plans/MASTRA-AGENT-WORKFLOW-STANDARD.md.
  */
 
-const extractStep = createStep({
-  id: 'extract',
-  inputSchema: z.object({
-    estimateRequestId: z.string(),
-    fileUrl: z.string().url(),
-    zipCode: z.string(),
-  }),
-  outputSchema: z.object({
-    estimateRequestId: z.string(),
-    zipCode: z.string(),
-    workItems: z.array(extractedWorkItemSchema),
-  }),
-  retries: 2,
-  execute: async ({ inputData }) => {
-    const { workItems } = await extractWorkItems({
-      estimateRequestId: inputData.estimateRequestId,
-      fileUrl: inputData.fileUrl,
-    });
-    return {
-      estimateRequestId: inputData.estimateRequestId,
-      zipCode: inputData.zipCode,
-      workItems,
-    };
-  },
+/**
+ * Named, shared — NOT redeclared inline at both `parseDocumentStep` and
+ * `summarizeEstimateWorkflow` itself. Mastra's own stated core principle
+ * (docs/workflows/control-flow: "The first step's inputSchema must match
+ * the workflow's inputSchema") means these two HAVE to stay identical.
+ */
+const summarizeEstimateInputSchema = z.object({
+  estimateRequestId: z.string(),
+  fileUrl: z.string().url(),
+  zipCode: z.string(),
 });
 
-const classifyStep = createStep({
-  id: 'classify',
-  inputSchema: extractStep.outputSchema,
-  outputSchema: z.object({
-    estimateRequestId: z.string(),
-    zipCode: z.string(),
-    lines: z.array(pendingLineSchema),
+const parseDocumentStep = createStep({
+  id: 'parse-document',
+  inputSchema: summarizeEstimateInputSchema,
+  outputSchema: z.object({ parsedDocument: parsedDocumentSchema }),
+  retries: 2,
+  execute: async ({ inputData }) => ({
+    parsedDocument: await parsePdfFromUrl(inputData.fileUrl),
   }),
-  execute: async ({ inputData }) => {
-    const { lines } = classifyLines(inputData.workItems);
-    return {
-      estimateRequestId: inputData.estimateRequestId,
-      zipCode: inputData.zipCode,
-      lines,
-    };
-  },
 });
 
 const priceStep = createStep({
   id: 'price',
-  inputSchema: classifyStep.outputSchema,
+  inputSchema: z.object({
+    estimateRequestId: z.string(),
+    zipCode: z.string(),
+    lines: z.array(billableLineSchema),
+    parsedDocument: parsedDocumentSchema,
+    sentences: z.array(meaningfulSentenceSchema),
+  }),
   outputSchema: z.object({
     lines: z.array(billableLineSchema),
     prices: z.array(pricedLineItemSchema),
+    parsedDocument: parsedDocumentSchema,
+    sentences: z.array(meaningfulSentenceSchema),
   }),
-  execute: async ({ inputData }) =>
-    priceLines({
+  execute: async ({ inputData }) => {
+    const priced = await priceLines({
       estimateRequestId: inputData.estimateRequestId,
       zipCode: inputData.zipCode,
       lines: inputData.lines,
-    }),
+    });
+    return {
+      ...priced,
+      parsedDocument: inputData.parsedDocument,
+      sentences: inputData.sentences,
+    };
+  },
 });
 
 export const summarizeEstimateWorkflow = createWorkflow({
   id: 'summarize-estimate',
-  inputSchema: z.object({
-    estimateRequestId: z.string(),
-    fileUrl: z.string().url(),
-    zipCode: z.string(),
-  }),
+  inputSchema: summarizeEstimateInputSchema,
   outputSchema: priceStep.outputSchema,
 })
-  .then(extractStep)
-  .then(classifyStep)
+  .then(parseDocumentStep)
+  // Build the extraction prompt. A bare `.map()`, not a named step —
+  // matches Mastra's own canonical "prompt right before an agent step"
+  // pattern (docs/workflows/agents-and-tools) exactly. The actual
+  // formatting logic lives in `buildExtractionPrompt`
+  // (extraction/steps.ts); this file only calls it.
+  .map(async ({ inputData }) => ({
+    prompt: buildExtractionPrompt(inputData.parsedDocument),
+  }))
+  .then(findingExtractorAgentStep)
+  .then(resolveFindingsStep)
+  // Build the classification prompt — same reasoning as above.
+  .map(async ({ inputData }) => ({
+    prompt: buildClassificationPrompt(inputData.findings),
+  }))
+  .then(lineClassifierAgentStep)
+  // Recombine the classifier's per-finding output with the findings it
+  // was classifying (the classifier never re-echoes
+  // action/scope/location/sourceQuote — buildLinesStep needs them).
+  .map(async ({ inputData, getStepResult }) => ({
+    findings: getStepResult(resolveFindingsStep).findings,
+    classifications: inputData.lines,
+  }))
+  .then(buildLinesStep)
+  // Recombine the built lines with everything priceStep needs that fell
+  // out of the agent-step data flow: the workflow's own init data
+  // (estimateRequestId, zipCode) and the parsed document/sentences from
+  // several steps back.
+  //
+  // getInitData<...> uses an explicit inline type matching this
+  // workflow's own declared inputSchema, NOT `typeof summarizeEstimateWorkflow`
+  // — self-referencing the workflow's own type from inside a callback
+  // defined within that same workflow's own initializer chain is a real
+  // TS circular-inference trap. Mastra's own shipped example sidesteps
+  // this the same way (using `<any>` where its prose says
+  // `getInitData<typeof workflow>()`); an explicit inline type here
+  // avoids both the circularity and the loss of type safety from `any`.
+  .map(async ({ inputData, getInitData, getStepResult }) => {
+    const init = getInitData<{ estimateRequestId: string; zipCode: string; fileUrl: string }>();
+    const { parsedDocument } = getStepResult(parseDocumentStep);
+    const { sentences } = getStepResult(resolveFindingsStep);
+    return {
+      estimateRequestId: init.estimateRequestId,
+      zipCode: init.zipCode,
+      lines: inputData.lines,
+      parsedDocument,
+      sentences,
+    };
+  })
   .then(priceStep)
   .commit();
