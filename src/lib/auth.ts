@@ -17,7 +17,11 @@ export const auth = betterAuth({
       user: schema.user,
     },
   }),
-  trustedOrigins: [APP_URL, "http://localhost:3000"],
+  trustedOrigins: [
+    APP_URL,
+    "http://localhost:3000",
+    "https://fixpro-app-dashboard-*.vercel.app",
+  ],
   ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
   experimental: {
     joins: true,

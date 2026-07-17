@@ -2,6 +2,7 @@ import { createAuthClient } from "better-auth/react";
 import { adminClient } from "better-auth/client/plugins";
 import { DEFAULT_LOGIN_REDIRECT } from "@/lib/config";
 import type { IAuthClientAdapter, GenericSession } from "../../types";
+import { AuthError } from "../../types";
 
 export const client = createAuthClient({ plugins: [adminClient()] });
 
@@ -17,6 +18,14 @@ export class BetterAuthClient implements IAuthClientAdapter {
 
   async signOut() {
     await client.signOut();
+  }
+
+  async signInEmail(email: string, password: string) {
+    const { error } = await client.signIn.email({ email, password });
+
+    if (error) {
+      throw new AuthError(error.message || "Login failed", error.statusText);
+    }
   }
 
   async signInWithGithub() {

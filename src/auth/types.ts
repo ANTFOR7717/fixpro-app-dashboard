@@ -11,6 +11,7 @@ export interface IAuthRouteHandler {
 export interface IAuthClientAdapter {
   useSession: () => { data: GenericSession | null; isPending?: boolean; error?: any };
   signOut: () => Promise<void>;
+  signInEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithGithub: () => Promise<void>;
   sendVerificationEmail: (options: { email: string; callbackURL: string }) => Promise<void>;
