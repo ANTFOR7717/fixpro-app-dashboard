@@ -4,7 +4,7 @@ import {
   findingExtractorAgent,
   extractionConsistencyScorer,
 } from './extraction';
-import { lineClassifierAgent } from './classification';
+import { materialsAgent, laborAgent, tradeAgent } from './classification';
 import { itemPricerAgent } from './pricing';
 import { summarizeEstimateWorkflow } from './pipeline';
 
@@ -14,7 +14,9 @@ import { summarizeEstimateWorkflow } from './pipeline';
  * it — because registering with Studio is Mastra's own framework
  * boundary, not a peer-module dependency. Nothing here calls `.generate()`
  * on any agent; that only ever happens inside extraction/index.ts,
- * classification/index.ts, and pricing/price-line.ts respectively.
+ * classification/finding-workflow.ts (via its own per-finding nested
+ * workflow's bare agent-step composition), and pricing/price-line.ts
+ * respectively.
  *
  * `logger` is explicit rather than left to Mastra's bare unnamed default:
  * without it, every internally-emitted log line (agent runs, scorer runs,
@@ -26,7 +28,9 @@ import { summarizeEstimateWorkflow } from './pipeline';
 export const mastra = new Mastra({
   agents: {
     'finding-extractor': findingExtractorAgent,
-    'line-classifier': lineClassifierAgent,
+    'classification-materials': materialsAgent,
+    'classification-labor': laborAgent,
+    'classification-trade': tradeAgent,
     'item-pricer': itemPricerAgent,
   },
   scorers: { 'extraction-consistency': extractionConsistencyScorer },

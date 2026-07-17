@@ -62,6 +62,14 @@ export function formatPartyRole(role: string): string {
  * lowercase short codes ("hvac", "interior", ...); invoices and estimates
  * print these as capitalized category labels ("HVAC", "Interior"). The
  * report uses this as the small eyebrow above each line title.
+ *
+ * Covers both the current 23-value taxonomy (classification's rebuilt
+ * `TRADE`, specs/003-classification-rebuild) and the retired 11-value
+ * taxonomy's remaining special-cased labels ('hvac', 'other') still
+ * possibly present on rows persisted before that rebuild — the retired
+ * taxonomy's other plain-word values ('structural', 'appliance',
+ * 'exterior', 'interior') are not special-cased because the `default`
+ * branch's title-casing already renders them identically.
  */
 export function formatTradeLabel(trade: string): string {
   switch (trade) {
@@ -71,14 +79,48 @@ export function formatTradeLabel(trade: string): string {
       return 'Electrical';
     case 'plumbing':
       return 'Plumbing';
+    case 'fire_protection':
+      return 'Fire Protection';
     case 'roofing':
       return 'Roofing';
+    case 'siding':
+      return 'Siding';
     case 'structural':
       return 'Structural';
     case 'carpentry':
       return 'Carpentry';
+    case 'drywall':
+      return 'Drywall';
+    case 'flooring':
+      return 'Flooring';
+    case 'glazing':
+      return 'Glazing';
     case 'masonry':
       return 'Masonry';
+    case 'painting':
+      return 'Painting';
+    case 'insulation':
+      return 'Insulation';
+    case 'concrete':
+      return 'Concrete';
+    case 'waterproofing':
+      return 'Waterproofing';
+    case 'tile':
+      return 'Tile';
+    case 'foundation':
+      return 'Foundation';
+    case 'excavation_grading':
+      return 'Excavation & Grading';
+    case 'landscaping':
+      return 'Landscaping';
+    case 'fencing':
+      return 'Fencing';
+    case 'mold_remediation':
+      return 'Mold Remediation';
+    case 'pest_control':
+      return 'Pest Control';
+    case 'general_contractor':
+      return 'General Contractor';
     case 'appliance':
       return 'Appliance';
     case 'exterior':
