@@ -29,8 +29,8 @@ export function ContactRowActions({ contact }: ContactRowActionsProps) {
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2">
+    <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end sm:has-[form]:col-span-2 sm:has-[form]:w-full">
+      <div className="flex gap-2 sm:justify-end">
         <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}>
           {editing ? "Cancel" : "Edit"}
         </Button>
@@ -39,7 +39,9 @@ export function ContactRowActions({ contact }: ContactRowActionsProps) {
         </Button>
       </div>
       {editing && (
-        <ContactForm mode="update" contact={contact} onDone={() => setEditing(false)} />
+        <div className="w-full">
+          <ContactForm mode="update" contact={contact} onDone={() => setEditing(false)} />
+        </div>
       )}
       <ConfirmationDialog
         isOpen={confirmOpen}

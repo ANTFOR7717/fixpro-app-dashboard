@@ -102,7 +102,7 @@ export function ItemsSection({ items, prices, parsedDocument }: ItemsSectionProp
             always measured in Hours.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex w-full flex-wrap items-center gap-4 border-t pt-3 text-xs text-muted-foreground sm:w-auto sm:border-0 sm:pt-0">
           <label
             htmlFor={sourceToggleId}
             className="flex cursor-pointer items-center gap-2"
@@ -193,7 +193,7 @@ function TradeGroup({
   const tradeLabel = formatTradeLabel(trade);
   return (
     <div className="overflow-hidden rounded-lg border">
-      <div className="flex items-center justify-between bg-muted px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="flex flex-col gap-2 bg-muted px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <span>{tradeLabel}</span>
           <span className="inline-flex items-center rounded-full border bg-card px-1.5 py-0 text-[10px] normal-case tracking-normal">
@@ -234,8 +234,8 @@ function ItemRow({
   const lineTotal = formatLineTotal(item.quantity, unitPrice);
   const isUnpriced = lineTotal === PRICE_UNAVAILABLE;
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_90px_110px_130px] items-center border-t px-4 py-3 text-sm">
-      <div>
+    <div className="grid grid-cols-2 items-center gap-3 border-t px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_90px_110px_130px] sm:gap-0">
+      <div className="col-span-2 sm:col-span-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="font-medium leading-snug">
             {formatItemTitle(item.scope, item.action, item.costType)}

@@ -70,7 +70,7 @@ export function EstimateStatusBar({ status, errorMessage, className }: EstimateS
 
   return (
     <div
-      className={cn('flex items-center gap-1.5 w-[180px] shrink-0', className)}
+      className={cn('flex w-full max-w-[180px] shrink-0 items-center gap-1.5', className)}
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={STAGES.length}

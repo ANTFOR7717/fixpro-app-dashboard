@@ -23,10 +23,10 @@ export async function EstimatesListView() {
     .orderBy(desc(estimateRequestTable.createdAt));
 
   return (
-    <div className="max-w-3xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-6xl space-y-8 p-4 md:p-6 lg:p-8">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-3xl font-extrabold tracking-tight">Your Estimates</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Your Estimates</h1>
           <p className="text-muted-foreground">
             Every inspection report you&apos;ve uploaded. Delete an estimate to remove its row and the uploaded PDF.
           </p>
@@ -35,8 +35,8 @@ export async function EstimatesListView() {
       </div>
 
       {estimates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-border rounded-xl bg-muted/30">
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card p-8 text-center">
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
             <FileText className="h-6 w-6 text-primary" />
           </div>
           <h3 className="text-lg font-semibold text-foreground tracking-tight">You haven&apos;t uploaded any estimates yet.</h3>
@@ -48,13 +48,13 @@ export async function EstimatesListView() {
           </Button>
         </div>
       ) : (
-        <Card>
+        <Card className="shadow-none">
           <CardContent className="p-0">
             <div className="divide-y divide-border">
               {estimates.map((upload) => {
                 const leftBlock = (
                   <div className="flex items-center gap-4 overflow-hidden">
-                    <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
+                    <div className="shrink-0 rounded-md bg-muted p-2.5 text-primary">
                       <FileText className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col overflow-hidden">
@@ -73,7 +73,7 @@ export async function EstimatesListView() {
                 );
 
                 return (
-                  <div key={upload.id} className="flex items-center justify-between p-4">
+                  <div key={upload.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
                     {upload.status === "completed" ? (
                       <Link
                         href={`/dashboard/estimate/${upload.id}`}
@@ -85,7 +85,7 @@ export async function EstimatesListView() {
                       <div className="flex-1 min-w-0">{leftBlock}</div>
                     )}
 
-                    <div className="flex items-center gap-3 shrink-0 pl-4">
+                    <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end sm:pl-4">
                       <EstimateStatusBar
                         status={upload.status}
                         errorMessage={upload.errorMessage}

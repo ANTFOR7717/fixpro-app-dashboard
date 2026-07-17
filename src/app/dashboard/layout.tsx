@@ -26,8 +26,10 @@ export default async function DashboardLayout({
   const footerItems = featureRegistry.getNavigation(role, "footer");
 
   return (
-    <DashboardLayoutClient navItems={navItems} footerItems={footerItems}>
-      {children}
-    </DashboardLayoutClient>
+    <div className="dashboard-ui min-h-svh">
+      <DashboardLayoutClient navItems={navItems} footerItems={footerItems}>
+        {children}
+      </DashboardLayoutClient>
+    </div>
   );
 }
