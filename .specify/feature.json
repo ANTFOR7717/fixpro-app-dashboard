@@ -1,4 +1,4 @@
 {
-  "feature_directory": "specs/002-pipeline-eval-harness",
+  "feature_directory": "specs/004-fix-classification-output",
   "plan_approved": true
 }

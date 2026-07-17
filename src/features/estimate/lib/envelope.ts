@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { billableLineSchema, type BillableLine } from '@/features/estimate-extraction-pipeline/classification';
+import {
+  billableLineSchema,
+  webSearchFlagSchema,
+  type BillableLine,
+  type WebSearchFlag,
+} from '@/features/estimate-extraction-pipeline/classification';
 import { pricedLineItemSchema, type PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
 import {
   parsedDocumentSchema,
@@ -66,6 +71,16 @@ export const summaryEnvelopeV3Schema = z.object({
    * moment this ships.
    */
   parsedDocument: parsedDocumentSchema.default({ pages: [] }),
+  /**
+   * Findings whose material quantity, labor hours, or trade could not
+   * be grounded this pass (classification's `flagged_for_web_search`
+   * contract — see classification/schema.ts). `.default([])` for the
+   * same reason as `parsedDocument` above: no existing v3 row has this
+   * key. Not yet rendered anywhere in the UI (out of scope for the
+   * classification rebuild that introduced this field) — persisted here
+   * only so it is never silently dropped at the persistence boundary.
+   */
+  flaggedForWebSearch: z.array(webSearchFlagSchema).default([]),
 });
 
 export type SummaryEnvelopeV3 = z.infer<typeof summaryEnvelopeV3Schema>;
@@ -92,6 +107,7 @@ export type ParsedEnvelope =
       lines: BillableLine[];
       prices: PricedLineItem[];
       parsedDocument: ParsedDocument;
+      flaggedForWebSearch: WebSearchFlag[];
     }
   | { kind: 'unparseable'; raw: string }
   | { kind: 'absent' };
@@ -113,6 +129,7 @@ export function parseSummaryEnvelope(summary: string | null): ParsedEnvelope {
       lines: v3.data.lines,
       prices: v3.data.prices,
       parsedDocument: v3.data.parsedDocument,
+      flaggedForWebSearch: v3.data.flaggedForWebSearch,
     };
   }
 

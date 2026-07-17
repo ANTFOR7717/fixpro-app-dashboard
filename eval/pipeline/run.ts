@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { mastra } from '@/features/estimate-extraction-pipeline';
 import type { ExtractedFinding } from '@/features/estimate-extraction-pipeline/extraction';
-import type { LineClassification } from '@/features/estimate-extraction-pipeline/classification';
+import type { BillableLine } from '@/features/estimate-extraction-pipeline/classification';
 import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
 import { discoverFixtures } from './fixtures';
 import { startFixtureServer } from './fixture-server';
@@ -88,14 +88,14 @@ async function runFixture(
     const matches: FindingMatch[] = recallResult.analyzeStepResult.matches;
     const unverifiable = matches.filter((m) => m.actualFindingId === null).map((m) => m.label);
 
-    const classificationStep = steps['line-classifier-agent'];
+    const classificationStep = steps['classification-fanout'];
     let classificationPass = false;
     let classificationMismatches: ClassificationMismatch[] = [];
     if (classificationStep && classificationStep.status === 'success') {
-      const classificationOutput = classificationStep.output as { lines: LineClassification[] };
+      const classificationOutput = classificationStep.output as { lines: BillableLine[] };
       const classificationResult = await classificationMatchScorer.run({
         input: undefined,
-        output: { actualClassifications: classificationOutput.lines, matches },
+        output: { actualLines: classificationOutput.lines, matches },
         groundTruth: { expected: fixture.expected.classifications },
       });
       if (!classificationResult.analyzeStepResult) {

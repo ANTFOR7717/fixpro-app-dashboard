@@ -32,7 +32,7 @@ export const extractionConsistencyScorer = createScorer({
     '(sourceQuote supports scope/action/trade) and names exactly one ' +
     'physical component.',
   judge: {
-    model: pioneerGateway.chat('claude-fable-5'),
+    model: pioneerGateway.chat('pioneer/auto'),
     instructions:
       'You audit billable work items extracted from a home inspection ' +
       'report. You see ONLY the emitted items, never the source document. ' +

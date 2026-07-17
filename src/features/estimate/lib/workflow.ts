@@ -60,6 +60,7 @@ export function triggerSummarizeEstimate({
           lines: result.result.lines,
           prices: result.result.prices,
           parsedDocument: result.result.parsedDocument,
+          flaggedForWebSearch: result.result.flaggedForWebSearch,
         };
         await db
           .update(estimateRequestTable)
