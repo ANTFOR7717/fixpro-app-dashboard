@@ -32,7 +32,7 @@ export function ContactPicker({ label, contacts, onSelect }: ContactPickerProps)
     <div className="space-y-2">
       <Label>{label}</Label>
       <Select onValueChange={handleChange} defaultValue={MANUAL_VALUE}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger>
           <SelectValue placeholder="Choose a saved contact or enter manually" />
         </SelectTrigger>
         <SelectContent>

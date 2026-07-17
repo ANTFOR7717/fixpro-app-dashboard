@@ -39,7 +39,7 @@ interface EstimateReportProps {
  */
 export function EstimateReport({ row, envelope }: EstimateReportProps) {
   return (
-    <Card className="mx-auto max-w-4xl rounded-lg px-4 py-6 shadow-none sm:px-8 sm:py-10">
+    <Card className="mx-auto max-w-4xl px-8 py-10">
       <ReportHeader row={row} />
       <Separator className="my-8" />
       <PropertyAndParties row={row} />
@@ -59,7 +59,7 @@ function ReportHeader({ row }: { row: EstimateRow }) {
     day: 'numeric',
   });
   return (
-    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex items-start justify-between gap-4">
       <div className="flex items-center gap-3">
         <Image
           src="/fixpro-logo.webp"
@@ -70,13 +70,13 @@ function ReportHeader({ row }: { row: EstimateRow }) {
           className="rounded"
         />
         <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+          <h1 className="text-2xl font-semibold tracking-tight">
             FixPro Estimate
           </h1>
           <p className="text-sm text-muted-foreground">{row.fileName}</p>
         </div>
       </div>
-      <div className="text-sm sm:text-right">
+      <div className="text-right text-sm">
         <div className="font-mono">Estimate #{shortId}</div>
         <div className="text-muted-foreground">Created {created}</div>
       </div>
