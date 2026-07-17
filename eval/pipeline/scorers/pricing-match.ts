@@ -1,5 +1,5 @@
 import { createScorer } from '@mastra/core/evals';
-import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
+import { priceAmount, type PricedLine } from '@/features/estimate-extraction-pipeline/pricing';
 import type { ExpectedPricing } from '../schema';
 import type { FindingMatch } from './extraction-recall';
 
@@ -9,7 +9,7 @@ export interface PricingMismatch {
 }
 
 interface PricingMatchOutput {
-  actualPrices: PricedLineItem[];
+  actualLines: PricedLine[];
   matches: FindingMatch[];
 }
 
@@ -40,8 +40,8 @@ export const pricingMatchScorer = createScorer<unknown, PricingMatchOutput>({
         mismatches.push({ findingLabel: expected.findingLabel, reason: 'No matched actual finding (unverifiable)' });
         continue;
       }
-      const ownLines = run.output.actualPrices.filter(
-        (p) => p.itemId === findingId || p.itemId.startsWith(`${findingId}-`),
+      const ownLines = run.output.actualLines.filter(
+        (p) => p.id === findingId || p.id.startsWith(`${findingId}-`),
       );
       if (ownLines.length === 0) {
         mismatches.push({
@@ -50,20 +50,20 @@ export const pricingMatchScorer = createScorer<unknown, PricingMatchOutput>({
         });
         continue;
       }
-      const allPriced = ownLines.every((p) => p.unitPrice !== null);
-      const allUnavailable = ownLines.every((p) => p.unitPrice === null);
+      const allPriced = ownLines.every((p) => priceAmount(p) !== null);
+      const allUnavailable = ownLines.every((p) => priceAmount(p) === null);
       if (expected.outcome === 'priced' && !allPriced) {
         mismatches.push({
           findingLabel: expected.findingLabel,
           reason: `Expected all lines priced, but ${
-            ownLines.filter((p) => p.unitPrice === null).length
+            ownLines.filter((p) => priceAmount(p) === null).length
           } of ${ownLines.length} were unavailable`,
         });
       } else if (expected.outcome === 'unavailable' && !allUnavailable) {
         mismatches.push({
           findingLabel: expected.findingLabel,
           reason: `Expected all lines unavailable, but ${
-            ownLines.filter((p) => p.unitPrice !== null).length
+            ownLines.filter((p) => priceAmount(p) !== null).length
           } of ${ownLines.length} were priced`,
         });
       }

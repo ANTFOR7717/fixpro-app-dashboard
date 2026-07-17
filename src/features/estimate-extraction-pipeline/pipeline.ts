@@ -2,7 +2,7 @@ import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 import { buildExtractionPrompt, findingExtractorAgentStep } from './extraction';
 import { classificationFanoutWorkflow, billableLineSchema, webSearchFlagSchema } from './classification';
-import { priceLines, pricedLineItemSchema } from './pricing';
+import { priceLines, pricedLineSchema } from './pricing';
 import { parsePdfFromUrl, parsedDocumentSchema } from './document';
 
 /**
@@ -63,19 +63,18 @@ const priceStep = createStep({
     flaggedForWebSearch: z.array(webSearchFlagSchema),
   }),
   outputSchema: z.object({
-    lines: z.array(billableLineSchema),
-    prices: z.array(pricedLineItemSchema),
+    lines: z.array(pricedLineSchema),
     parsedDocument: parsedDocumentSchema,
     flaggedForWebSearch: z.array(webSearchFlagSchema),
   }),
   execute: async ({ inputData }) => {
-    const priced = await priceLines({
+    const lines = await priceLines({
       estimateRequestId: inputData.estimateRequestId,
       zipCode: inputData.zipCode,
       lines: inputData.lines,
     });
     return {
-      ...priced,
+      lines,
       parsedDocument: inputData.parsedDocument,
       flaggedForWebSearch: inputData.flaggedForWebSearch,
     };

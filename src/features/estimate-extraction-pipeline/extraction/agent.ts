@@ -35,9 +35,8 @@ GROUNDING
 For every finding you emit, "sourceQuote" must be the exact verbatim
 sentence (or clause) copied from the report that names both the defect
 and the required action — no paraphrase, no merging text from separate
-sentences, no invention. "pageHint" must be the page that quote actually
-appears on, formatted "p. {page}". If you cannot find a verbatim sentence
-in the report that supports a candidate finding, do NOT emit the finding.
+sentences, no invention. If you cannot find a verbatim sentence in the
+report that supports a candidate finding, do NOT emit the finding.
 
 HARD RULES
 1. GROUNDED ONLY. Every emitted finding's "sourceQuote" must be copied
@@ -94,7 +93,6 @@ FIELDS YOU MUST PRODUCE PER FINDING
   stated an hour count. In every other case: null.
 - sourceQuote: the exact verbatim sentence or clause from the report that
   names both the defect and the action for this finding.
-- pageHint: the page that quote appears on, formatted "p. {page}".
 
 OUTPUT FORMAT
 Return JSON matching the provided structured-output schema exactly. The

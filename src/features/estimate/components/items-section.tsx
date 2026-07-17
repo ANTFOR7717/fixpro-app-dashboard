@@ -14,26 +14,47 @@ import {
   formatTradeLabel,
   formatUnit,
 } from '@/features/estimate/lib/format';
-import type { LegacyBillableItem } from '@/features/estimate/lib/envelope';
-import type { BillableLine } from '@/features/estimate-extraction-pipeline/classification';
-import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
+import type { PricedLine } from '@/features/estimate-extraction-pipeline/pricing';
+import type { Trade } from '@/features/estimate-extraction-pipeline/classification';
 import type { ParsedDocument } from '@/features/estimate-extraction-pipeline/document';
 
-/** v3 lines and legacy v1/v2 items render through the same rows. */
-type RenderableItem = LegacyBillableItem | BillableLine;
-
 interface ItemsSectionProps {
-  items: RenderableItem[];
-  prices: PricedLineItem[];
+  lines: PricedLine[];
   parsedDocument: ParsedDocument;
 }
 
 /**
- * Renders the "Billable items" block of the report with three viewer-side
- * toggles:
+ * The determined price amount for one line, or `null` when unavailable —
+ * the one place this component narrows `PricedLine.price`'s
+ * `determinedOr()` union (reading its own `status` tag, the documented,
+ * unavoidable way to consume a discriminated union — spec.md's Governing
+ * Rule). Kept as a LOCAL, type-only-import-compatible copy rather than
+ * importing `pricing/schema.ts`'s exported `priceAmount()` through the
+ * `pricing` door: this file is `'use client'`, and every existing import
+ * from `pricing` here is deliberately `import type` so it's erased at
+ * compile time — importing a real runtime value from that door pulls
+ * `pricing/index.ts`'s full module graph (including `workflow.ts`/
+ * `agent.ts`'s Mastra/Node-only code, e.g. `stream/web`) into the browser
+ * bundle, which `pnpm build` catches as a hard failure. The eval pricing
+ * scorer (a Node-only script, no client-bundle constraint) still imports
+ * the shared `pricing/schema.ts` version.
+ */
+function priceAmount(line: PricedLine): number | null {
+  if (line.price.status !== 'determined') return null;
+  return line.costType === 'material' ? line.price.value.unitPrice : line.price.value.hourlyRate;
+}
+
+/**
+ * Renders the "Billable items" block of the report. v1/v2 legacy
+ * estimates are no longer supported (revised FR-003,
+ * specs/007-pipeline-schema-cleanup) — this component only ever
+ * receives the current, merged-price v3 shape, so there is no
+ * runtime type-discriminant or separate rendering path to maintain.
+ *
+ * Three viewer-side toggles:
  *
  *   - "Show source quote" — controls the italic verbatim excerpt from the
- *     inspection report (and its page hint).
+ *     inspection report.
  *   - "Show pricing evidence" — controls the confidence badge + source
  *     label + unavailable-reason annotation on each line.
  *   - "Show debug JSON" — controls one whole-document raw JSON view: the
@@ -47,45 +68,35 @@ interface ItemsSectionProps {
  * parent `EstimateReport` stays a server component and just passes the
  * already-parsed envelope contents through.
  */
-export function ItemsSection({ items, prices, parsedDocument }: ItemsSectionProps) {
+export function ItemsSection({ lines, parsedDocument }: ItemsSectionProps) {
   const [showSource, setShowSource] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
 
-  const priceByItemId = useMemo(
-    () => new Map(prices.map((p) => [p.itemId, p])),
-    [prices],
-  );
-
   // Group items by `trade`, preserving order of first appearance.
   const groups = useMemo(() => {
-    const byTrade = new Map<string, RenderableItem[]>();
-    for (const item of items) {
-      const list = byTrade.get(item.trade);
-      if (list) list.push(item);
-      else byTrade.set(item.trade, [item]);
+    const byTrade = new Map<Trade, PricedLine[]>();
+    for (const line of lines) {
+      const list = byTrade.get(line.trade);
+      if (list) list.push(line);
+      else byTrade.set(line.trade, [line]);
     }
-    return Array.from(byTrade, ([trade, groupItems]) => {
+    return Array.from(byTrade, ([trade, groupLines]) => {
       let groupSubtotal = 0;
-      for (const item of groupItems) {
-        const price = priceByItemId.get(item.id);
-        if (price && price.unitPrice !== null) {
-          groupSubtotal += item.quantity * price.unitPrice;
-        }
+      for (const line of groupLines) {
+        const amount = priceAmount(line);
+        if (amount !== null) groupSubtotal += line.quantity * amount;
       }
-      return { trade, items: groupItems, groupSubtotal };
+      return { trade, lines: groupLines, groupSubtotal };
     });
-  }, [items, priceByItemId]);
+  }, [lines]);
 
   let subtotal = 0;
   let unpriced = 0;
-  for (const item of items) {
-    const price = priceByItemId.get(item.id);
-    if (price && price.unitPrice !== null) {
-      subtotal += item.quantity * price.unitPrice;
-    } else {
-      unpriced++;
-    }
+  for (const line of lines) {
+    const amount = priceAmount(line);
+    if (amount !== null) subtotal += line.quantity * amount;
+    else unpriced++;
   }
 
   const sourceToggleId = useId();
@@ -150,7 +161,7 @@ export function ItemsSection({ items, prices, parsedDocument }: ItemsSectionProp
           </div>
         </div>
       ) : null}
-      {items.length === 0 ? (
+      {lines.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No billable items were extracted from this report.
         </p>
@@ -160,9 +171,8 @@ export function ItemsSection({ items, prices, parsedDocument }: ItemsSectionProp
             <TradeGroup
               key={group.trade}
               trade={group.trade}
-              groupItems={group.items}
+              groupLines={group.lines}
               groupSubtotal={group.groupSubtotal}
-              priceByItemId={priceByItemId}
               showSource={showSource}
               showEvidence={showEvidence}
             />
@@ -177,16 +187,14 @@ export function ItemsSection({ items, prices, parsedDocument }: ItemsSectionProp
 
 function TradeGroup({
   trade,
-  groupItems,
+  groupLines,
   groupSubtotal,
-  priceByItemId,
   showSource,
   showEvidence,
 }: {
-  trade: string;
-  groupItems: RenderableItem[];
+  trade: Trade;
+  groupLines: PricedLine[];
   groupSubtotal: number;
-  priceByItemId: Map<string, PricedLineItem>;
   showSource: boolean;
   showEvidence: boolean;
 }) {
@@ -197,7 +205,7 @@ function TradeGroup({
         <div className="flex items-center gap-2">
           <span>{tradeLabel}</span>
           <span className="inline-flex items-center rounded-full border bg-card px-1.5 py-0 text-[10px] normal-case tracking-normal">
-            {groupItems.length} Items
+            {groupLines.length} Items
           </span>
         </div>
         <div className="tabular-nums">
@@ -205,11 +213,10 @@ function TradeGroup({
         </div>
       </div>
       <div>
-        {groupItems.map((item) => (
+        {groupLines.map((line) => (
           <ItemRow
-            key={item.id}
-            item={item}
-            price={priceByItemId.get(item.id) ?? null}
+            key={line.id}
+            line={line}
             showSource={showSource}
             showEvidence={showEvidence}
           />
@@ -220,59 +227,57 @@ function TradeGroup({
 }
 
 function ItemRow({
-  item,
-  price,
+  line,
   showSource,
   showEvidence,
 }: {
-  item: RenderableItem;
-  price: PricedLineItem | null;
+  line: PricedLine;
   showSource: boolean;
   showEvidence: boolean;
 }) {
-  const unitPrice = price?.unitPrice ?? null;
-  const lineTotal = formatLineTotal(item.quantity, unitPrice);
+  const unitPrice = priceAmount(line);
+  const lineTotal = formatLineTotal(line.quantity, unitPrice);
   const isUnpriced = lineTotal === PRICE_UNAVAILABLE;
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_90px_110px_130px] items-center border-t px-4 py-3 text-sm">
       <div>
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="font-medium leading-snug">
-            {formatItemTitle(item.scope, item.action, item.costType)}
+            {formatItemTitle(line.scope, line.action, line.costType)}
           </div>
         </div>
         <div className="text-xs text-muted-foreground">
-          {formatLocation(item.location)}
+          {formatLocation(line.location)}
         </div>
         {showSource ? (
           <div className="mt-1 text-sm italic text-muted-foreground">
-            “{item.sourceQuote}”
-            {item.pageHint ? (
-              <span className="not-italic"> ({item.pageHint})</span>
-            ) : null}
+            “{line.sourceQuote}”
           </div>
         ) : null}
-        {showEvidence && price ? (
+        {showEvidence ? (
           <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            <Badge variant="outline" className="mr-1">
-              {price.confidence}
-            </Badge>
-            <span>source: {price.source}</span>
-            {price.unitPrice === null && price.unavailableReason ? (
-              <span> — {price.unavailableReason}</span>
-            ) : null}
+            {line.price.status === 'determined' ? (
+              <>
+                <Badge variant="outline" className="mr-1">
+                  {line.price.value.confidence}
+                </Badge>
+                <span>source: {line.price.value.source}</span>
+              </>
+            ) : (
+              <span>{line.price.reason}</span>
+            )}
           </div>
         ) : null}
       </div>
       <div>
         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-          {formatCostType(item.costType)}
+          {formatCostType(line.costType)}
         </span>
       </div>
       <div className="tabular-nums">
-        <span className="font-medium">{item.quantity}</span>
+        <span className="font-medium">{line.quantity}</span>
         <span className="ml-1 inline-flex items-center rounded-md border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-          {formatUnit(item.unit)}
+          {formatUnit(line.unit)}
         </span>
       </div>
       <div

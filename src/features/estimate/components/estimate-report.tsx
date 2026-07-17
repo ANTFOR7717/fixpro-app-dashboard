@@ -6,7 +6,6 @@ import type { estimateRequestTable } from '@/features/estimate/db/schema';
 import type { ParsedEnvelope } from '@/features/estimate/lib/envelope';
 import { formatPartyRole } from '@/features/estimate/lib/format';
 import { ItemsSection } from '@/features/estimate/components/items-section';
-import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
 
 type EstimateRow = typeof estimateRequestTable.$inferSelect;
 
@@ -27,7 +26,7 @@ interface EstimateReportProps {
  *     INTERIOR · 2 Items          Group Subtotal: $X,XXX.00
  *     Damaged Drywall Section          MATERIAL   32 SF   $480.00
  *       north wall, primary bedroom
- *       "<sourceQuote>" (p. 14)                  (toggleable)
+ *       "<sourceQuote>"                          (toggleable)
  *       [confidence] source: <source>            (toggleable)
  *     Drywall Repaint                     LABOR   3.5 HRS  $265.00
  *   ────────────────────────────────────────────────────────
@@ -145,6 +144,13 @@ function PartyBlock({
   );
 }
 
+/**
+ * v1/v2 legacy estimates are no longer supported (revised FR-003,
+ * specs/007-pipeline-schema-cleanup) — only `'v3'`, `'unparseable'`, and
+ * `'absent'` remain on `ParsedEnvelope`, so this no longer branches on
+ * `envelope.kind` to assemble items/prices from two different shapes;
+ * it renders `ItemsSection` directly with the one shape that exists.
+ */
 function ItemsBlock({ envelope }: { envelope: ParsedEnvelope }) {
   if (envelope.kind === 'absent') {
     return (
@@ -167,12 +173,8 @@ function ItemsBlock({ envelope }: { envelope: ParsedEnvelope }) {
     );
   }
 
-  const items = envelope.kind === 'v3' ? envelope.lines : envelope.items;
-  const prices: PricedLineItem[] = envelope.prices;
-  const parsedDocument = envelope.kind === 'v3' ? envelope.parsedDocument : { pages: [] };
-
   return (
-    <ItemsSection items={items} prices={prices} parsedDocument={parsedDocument} />
+    <ItemsSection lines={envelope.lines} parsedDocument={envelope.parsedDocument} />
   );
 }
 

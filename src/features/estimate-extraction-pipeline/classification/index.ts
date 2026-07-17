@@ -11,9 +11,15 @@ export {
   TRADE,
   EXTENT_UNIT,
   billableLineSchema,
+  materialLineSchema,
+  laborLineSchema,
   webSearchFlagSchema,
+  determinedOr,
   type BillableLine,
+  type MaterialLine,
+  type LaborLine,
   type Trade,
+  type ExtentUnit,
   type WebSearchFlag,
 } from './schema';
 export { classificationFanoutWorkflow } from './workflow';

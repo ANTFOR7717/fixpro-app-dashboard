@@ -54,9 +54,9 @@ export type ExtentUnit = (typeof EXTENT_UNIT)[number];
  * bare null, never a fabricated plausible-sounding value. Carries
  * everything a future (out-of-scope-for-this-pass) web-search
  * resolution step would need without re-deriving anything: the full
- * originating finding, the surrounding parsed-document excerpt near its
- * `pageHint`, a short machine-readable reason, and whatever else this
- * pass DID determine for the same finding.
+ * originating finding, the surrounding parsed-document excerpt, a short
+ * machine-readable reason, and whatever else this pass DID determine for
+ * the same finding.
  *
  * This full shape is assembled by `finding-workflow.ts`'s own
  * `combineResultStep` (via `getInitData()`/`getStepResult()`,
@@ -70,7 +70,7 @@ export type ExtentUnit = (typeof EXTENT_UNIT)[number];
  */
 export const webSearchFlagSchema = z.object({
   status: z.literal('flagged_for_web_search'),
-  reason: z.string().min(1).max(300),
+  reason: z.string().min(1),
   searchContext: z.object({
     finding: extractedFindingSchema,
     documentExcerpt: z.string(),
@@ -98,16 +98,18 @@ export type WebSearchFlag = z.infer<typeof webSearchFlagSchema>;
 /**
  * The MINIMAL "couldn't determine" shape an agent's own structured
  * output is ever required to produce — its own judgment only, nothing
- * echoed back. `finding-workflow.ts`'s `combineResultStep` upgrades a
- * value of this shape into a full `WebSearchFlag` (above) by attaching
- * context it already possesses via `getInitData()`/`getStepResult()` —
- * the same mechanism this codebase already uses to build each agent's
- * own PROMPT, applied symmetrically on the output side
+ * echoed back. Built by omitting `webSearchFlagSchema`'s own
+ * `searchContext` field rather than independently retyping
+ * `status`/`reason` (specs/007-pipeline-schema-cleanup finding #10).
+ * `finding-workflow.ts`'s `combineResultStep` upgrades a value of this
+ * shape into a full `WebSearchFlag` (above) by attaching context it
+ * already possesses via `getInitData()`/`getStepResult()` — the same
+ * mechanism this codebase already uses to build each agent's own
+ * PROMPT, applied symmetrically on the output side
  * (specs/004-fix-classification-output).
  */
-export const agentUndeterminedSchema = z.object({
-  status: z.literal('flagged_for_web_search'),
-  reason: z.string().min(1).max(300),
+export const agentUndeterminedSchema = webSearchFlagSchema.omit({
+  searchContext: true,
 });
 export type AgentUndetermined = z.infer<typeof agentUndeterminedSchema>;
 
@@ -139,29 +141,55 @@ export function determinedOr<T extends z.ZodTypeAny, F extends z.core.$ZodTypeDi
   ]);
 }
 
-/** One physical material identified for a finding, before flattening. */
+/**
+ * The determined VALUE shape for a material's quantity — exported
+ * separately (not inlined) so `finding-workflow.ts`'s
+ * `materialsStepOutputSchema` can pass this exact same value schema into
+ * its own `determinedOr()` call (with `agentUndeterminedSchema` as the
+ * flag branch, instead of this schema's own default) rather than
+ * independently retyping `amount`/`unit`/`amountSource`
+ * (specs/007-pipeline-schema-cleanup FR-006).
+ */
+export const materialQuantityValueSchema = z.object({
+  amount: z.number().positive(),
+  unit: z.enum(EXTENT_UNIT),
+  amountSource: z.string().min(1),
+});
+
+/**
+ * One physical material identified for a finding, before flattening.
+ * `amountSource` (the grounding citation) lives inside the determined
+ * branch's own value — not a dangling optional sibling — so "a
+ * determined quantity always has a source" is structurally guaranteed,
+ * not a runtime check `flatten.ts` has to enforce
+ * (specs/007-pipeline-schema-cleanup FR-004).
+ */
 export const materialDeterminationSchema = z.object({
   material: z.string().min(1),
-  quantity: determinedOr(
-    z.object({
-      amount: z.number().positive(),
-      unit: z.enum(EXTENT_UNIT),
-    }),
-  ),
-  /**
-   * Present only alongside a 'determined' quantity — the grounding
-   * citation (a document quote, or in a future pass, a web-search
-   * citation). Omitted entirely when quantity is flagged.
-   */
-  amountSource: z.string().min(1).optional(),
+  quantity: determinedOr(materialQuantityValueSchema),
 });
 export type MaterialDetermination = z.infer<typeof materialDeterminationSchema>;
 
-/** The labor identified for a finding, before flattening. */
+/**
+ * The determined VALUE shape for labor hours — exported separately for
+ * the same reason as `materialQuantityValueSchema` above
+ * (specs/007-pipeline-schema-cleanup FR-006). No quarter-hour rounding
+ * rule — an unconfirmed assumption pattern-matched from mock sample
+ * data, never an actual product requirement (finding #13).
+ */
+export const laborHoursValueSchema = z.object({
+  amount: z.number().positive(),
+  hoursSource: z.string().min(1),
+});
+
+/**
+ * The labor identified for a finding, before flattening. `hoursSource`
+ * lives inside the determined branch's own value for the same reason as
+ * `materialDeterminationSchema.amountSource` above.
+ */
 export const laborDeterminationSchema = z.object({
   laborType: z.string().min(1),
-  hours: determinedOr(z.number().multipleOf(0.25).min(0.25)),
-  hoursSource: z.string().min(1).optional(),
+  hours: determinedOr(laborHoursValueSchema),
 });
 export type LaborDetermination = z.infer<typeof laborDeterminationSchema>;
 
@@ -169,48 +197,45 @@ export type LaborDetermination = z.infer<typeof laborDeterminationSchema>;
  * A finding's identity fields that a billable line must carry through to
  * pricing/rendering — factored out so both `classificationResultSchema`
  * and the two line schemas below share one definition instead of two
- * independently-maintained copies.
+ * independently-maintained copies. A real `ZodObject`, composed via
+ * `.extend()` below rather than object-spread
+ * (specs/007-pipeline-schema-cleanup FR-007).
  */
-const itemIdentityFields = {
+const itemIdentitySchema = z.object({
   id: z.string(),
   trade: z.enum(TRADE),
   action: z.enum(ACTION),
   scope: z.string().min(1),
   location: z.string().min(1),
-  sourceQuote: z.string().min(8).max(500),
-  pageHint: z
-    .string()
-    .regex(/^p\.\s*\d+$/)
-    .nullable(),
-} as const;
+  sourceQuote: z.string().min(1),
+});
 
 /**
  * One finding's complete classification, as the per-finding nested
- * workflow's own combine step (finding-workflow.ts) produces it. Carries
- * the originating finding's own identity fields (`action`/`scope`/
- * `location`/`sourceQuote`/`pageHint`, from `getInitData()`) alongside
- * the three agents' own determinations, so `flatten.ts` is fully
- * self-contained — no separate "merge findings back in by id" step like
- * the scrapped module's `buildLinesStep` needed. `materials` is an
+ * workflow's own combine step (finding-workflow.ts) produces it. Derived
+ * from `extractedFindingSchema` via `.omit()`/`.extend()` rather than
+ * independently retyping `action`/`scope`/`location`/`sourceQuote`
+ * (specs/007-pipeline-schema-cleanup FR-008) — `id`/`statedQuantity`/
+ * `inspectorHours` don't carry forward (renamed to `findingId`, or
+ * consumed already during extraction/classification prompting), and
+ * `materials`/`labor`/`trade` are this schema's own additions. Carries
+ * the originating finding's own identity fields (from `getInitData()`)
+ * alongside the three agents' own determinations, so `flatten.ts` is
+ * fully self-contained — no separate "merge findings back in by id" step
+ * like the scrapped module's `buildLinesStep` needed. `materials` is an
  * ARRAY — zero, one, or many entries, each with its own unit — because
  * one finding can genuinely span multiple differently-unit-typed
  * materials. Zero materials is a valid, honest "labor-only" state, never
  * an error (spec.md User Story 2).
  */
-export const classificationResultSchema = z.object({
-  findingId: z.string(),
-  action: z.enum(ACTION),
-  scope: z.string().min(1),
-  location: z.string().min(1),
-  sourceQuote: z.string().min(8).max(500),
-  pageHint: z
-    .string()
-    .regex(/^p\.\s*\d+$/)
-    .nullable(),
-  materials: z.array(materialDeterminationSchema),
-  labor: laborDeterminationSchema,
-  trade: determinedOr(z.enum(TRADE)),
-});
+export const classificationResultSchema = extractedFindingSchema
+  .omit({ id: true, statedQuantity: true, inspectorHours: true })
+  .extend({
+    findingId: z.string(),
+    materials: z.array(materialDeterminationSchema),
+    labor: laborDeterminationSchema,
+    trade: determinedOr(z.enum(TRADE)),
+  });
 export type ClassificationResult = z.infer<typeof classificationResultSchema>;
 
 /**
@@ -221,10 +246,10 @@ export type ClassificationResult = z.infer<typeof classificationResultSchema>;
  * `sourceQuote`) — only `trade`'s value set changes in this rebuild.
  * `quantity` is never null here — a flagged (undetermined) material
  * never reaches this schema; it is surfaced via `webSearchFlagSchema`
- * instead (see flatten.ts).
+ * instead (see flatten.ts). Built via `.extend()` off `itemIdentitySchema`
+ * (specs/007-pipeline-schema-cleanup FR-007).
  */
-export const materialLineSchema = z.object({
-  ...itemIdentityFields,
+export const materialLineSchema = itemIdentitySchema.extend({
   costType: z.literal('material'),
   /** What the material actually is, e.g. "wood siding board". */
   material: z.string().min(1),
@@ -237,15 +262,15 @@ export const materialLineSchema = z.object({
 /**
  * ONE labor billable line. Same "never null, never flagged" reasoning
  * as `materialLineSchema.quantity` — a flagged labor-hours value never
- * reaches this schema.
+ * reaches this schema. Built via `.extend()` off `itemIdentitySchema`
+ * (specs/007-pipeline-schema-cleanup FR-007).
  */
-export const laborLineSchema = z.object({
-  ...itemIdentityFields,
+export const laborLineSchema = itemIdentitySchema.extend({
   costType: z.literal('labor'),
   /** What the labor actually is, e.g. "siding repair labor". */
   laborType: z.string().min(1),
-  /** Hours, in quarter-hour increments. */
-  quantity: z.number().multipleOf(0.25).min(0.25),
+  /** Hours. No quarter-hour rounding rule (finding #13 — never requested). */
+  quantity: z.number().positive(),
   unit: z.literal('hrs'),
   hoursSource: z.string().min(1),
   /**

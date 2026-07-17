@@ -1,69 +1,41 @@
 import { z } from 'zod';
 import {
-  billableLineSchema,
   webSearchFlagSchema,
-  type BillableLine,
   type WebSearchFlag,
 } from '@/features/estimate-extraction-pipeline/classification';
-import { pricedLineItemSchema, type PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
+import { pricedLineSchema, type PricedLine } from '@/features/estimate-extraction-pipeline/pricing';
 import {
   parsedDocumentSchema,
   type ParsedDocument,
 } from '@/features/estimate-extraction-pipeline/document';
 
-/**
- * LEGACY (v1/v2) flat item shape, kept ONLY so rows persisted before this
- * refactor keep parsing and rendering. The v3 pipeline never produces this
- * shape — `BillableLine` (imported above) is what it produces.
- */
-const LEGACY_UNIT = ['ea', 'lf', 'sf', 'sqft', 'cy', 'hrs'] as const;
-const LEGACY_COST_TYPE = ['labor', 'material'] as const;
-
-export const legacyBillableItemSchema = z.object({
-  id: z.string(),
-  trade: z.string(),
-  action: z.string(),
-  scope: z.string().min(1),
-  location: z.string().min(1),
-  quantity: z.number().int().min(1),
-  unit: z.enum(LEGACY_UNIT),
-  costType: z.enum(LEGACY_COST_TYPE),
-  sourceQuote: z.string().min(8).max(500),
-  pageHint: z
-    .string()
-    .regex(/^p\.\s*\d+$/)
-    .nullable(),
-});
-
-export type LegacyBillableItem = z.infer<typeof legacyBillableItemSchema>;
-
 export const SUMMARY_ENVELOPE_KIND = 'billable-extraction' as const;
-
-const summaryEnvelopeV1Schema = z.object({
-  kind: z.literal(SUMMARY_ENVELOPE_KIND),
-  version: z.literal(1),
-  items: z.array(legacyBillableItemSchema),
-});
-
-const summaryEnvelopeV2Schema = z.object({
-  kind: z.literal(SUMMARY_ENVELOPE_KIND),
-  version: z.literal(2),
-  items: z.array(legacyBillableItemSchema),
-  prices: z.array(pricedLineItemSchema),
-});
 
 export const SUMMARY_ENVELOPE_VERSION_3 = 3 as const;
 
 /**
- * v3: discriminated lines + prices. For a labor line, `unitPrice` on the
- * matching price is the HOURLY RATE; the report's quantity × unitPrice
- * arithmetic is hours × rate, per the v3 prototype.
+ * v3: one `lines` array, each entry a `PricedLine` (a `BillableLine`
+ * merged with its own price — FR-011). No separate `prices` array —
+ * the natural paired shape already existed at `pricing/price-line.ts`'s
+ * own step output; this schema stops splitting it apart. Modified in
+ * place (still version 3, no new version literal): an estimate persisted
+ * under the OLD split `lines`/`prices` v3 shape is explicitly NOT
+ * required to keep parsing — it falls through to `'unparseable'` and is
+ * recovered via the existing retry flow (resolved Clarification,
+ * specs/007-pipeline-schema-cleanup).
+ *
+ * v1/v2 legacy support (the flat pre-pricing and flat-with-prices
+ * shapes, and their own schemas) is deleted entirely — explicit user
+ * direction: legacy compatibility is itself unrequested complexity, not
+ * something to preserve or build rendering paths around (revised FR-003).
+ * An estimate persisted under the old v1/v2 shape now falls through to
+ * `'unparseable'`, the same recovery path already accepted for
+ * old-shape v3 rows.
  */
 export const summaryEnvelopeV3Schema = z.object({
   kind: z.literal(SUMMARY_ENVELOPE_KIND),
   version: z.literal(SUMMARY_ENVELOPE_VERSION_3),
-  lines: z.array(billableLineSchema),
-  prices: z.array(pricedLineItemSchema),
+  lines: z.array(pricedLineSchema),
   /**
    * `.default()`, not required — rows persisted before these fields
    * existed have no such keys at all. Without a default, every existing
@@ -90,22 +62,21 @@ export type SummaryEnvelopeV3 = z.infer<typeof summaryEnvelopeV3Schema>;
  * hands this directly to <EstimateReport /> so the report component never
  * touches JSON or Zod.
  *
- * - 'v1': rows produced before the pricing branch landed. Items only.
- * - 'v2': legacy production shape. Items + prices, flat costType/unit.
- * - 'v3': current production shape. Discriminated material/labor lines +
- *   prices, per the v3 prototype's unit discipline.
+ * - 'v3': current production shape. One `lines` array of merged priced
+ *   lines, per specs/007-pipeline-schema-cleanup.
  * - 'unparseable': `summary` is a non-null string we couldn't parse as
- *   JSON, or it parsed but didn't match any known schema.
+ *   JSON, or it parsed but didn't match the v3 schema. Also what an
+ *   estimate persisted under the OLD (pre-cleanup) split-array v3 shape,
+ *   or under the now-deleted v1/v2 legacy shapes, falls through to —
+ *   recovered via the existing retry flow, not by preserving those old
+ *   shapes' parseability.
  * - 'absent': `summary` is null. The estimate has not produced a summary
  *   yet (or is still processing).
  */
 export type ParsedEnvelope =
-  | { kind: 'v1'; items: LegacyBillableItem[]; prices: [] }
-  | { kind: 'v2'; items: LegacyBillableItem[]; prices: PricedLineItem[] }
   | {
       kind: 'v3';
-      lines: BillableLine[];
-      prices: PricedLineItem[];
+      lines: PricedLine[];
       parsedDocument: ParsedDocument;
       flaggedForWebSearch: WebSearchFlag[];
     }
@@ -127,17 +98,10 @@ export function parseSummaryEnvelope(summary: string | null): ParsedEnvelope {
     return {
       kind: 'v3',
       lines: v3.data.lines,
-      prices: v3.data.prices,
       parsedDocument: v3.data.parsedDocument,
       flaggedForWebSearch: v3.data.flaggedForWebSearch,
     };
   }
-
-  const v2 = summaryEnvelopeV2Schema.safeParse(json);
-  if (v2.success) return { kind: 'v2', items: v2.data.items, prices: v2.data.prices };
-
-  const v1 = summaryEnvelopeV1Schema.safeParse(json);
-  if (v1.success) return { kind: 'v1', items: v1.data.items, prices: [] };
 
   return { kind: 'unparseable', raw: summary };
 }

@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { mastra } from '@/features/estimate-extraction-pipeline';
 import type { ExtractedFinding } from '@/features/estimate-extraction-pipeline/extraction';
 import type { BillableLine } from '@/features/estimate-extraction-pipeline/classification';
-import type { PricedLineItem } from '@/features/estimate-extraction-pipeline/pricing';
+import type { PricedLine } from '@/features/estimate-extraction-pipeline/pricing';
 import { discoverFixtures } from './fixtures';
 import { startFixtureServer } from './fixture-server';
 import { groundingScorer, type GroundingViolation } from './scorers/grounding';
@@ -109,10 +109,10 @@ async function runFixture(
     let pricingPass = false;
     let pricingMismatches: PricingMismatch[] = [];
     if (priceStep && priceStep.status === 'success') {
-      const priceOutput = priceStep.output as { prices: PricedLineItem[] };
+      const priceOutput = priceStep.output as { lines: PricedLine[] };
       const pricingResult = await pricingMatchScorer.run({
         input: undefined,
-        output: { actualPrices: priceOutput.prices, matches },
+        output: { actualLines: priceOutput.lines, matches },
         groundTruth: { expected: fixture.expected.pricing },
       });
       if (!pricingResult.analyzeStepResult) {

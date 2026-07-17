@@ -9,6 +9,8 @@ import {
   determinedOr,
   agentUndeterminedSchema,
   classificationResultSchema,
+  materialQuantityValueSchema,
+  laborHoursValueSchema,
 } from './schema';
 import { createModuleLogger } from '../shared/logger';
 
@@ -21,21 +23,17 @@ const findingWithDocumentSchema = z.object({
 });
 
 /**
- * The surrounding parsed-document text near a finding's own `pageHint`
- * — the current page plus one page of context on each side (spec.md
- * FR-007). Bounded, not the whole document, so three agent calls per
- * finding stay tractable; falls back to `''` when `pageHint` is absent
- * or unparseable, since there is no anchor to build a window around.
+ * The full parsed document, formatted for an agent prompt — mirrors
+ * `extraction/steps.ts`'s existing `buildExtractionPrompt()` exactly,
+ * the only document-context mechanism already proven working in this
+ * codebase (specs/007-pipeline-schema-cleanup FR-002, research.md R3).
+ * Replaces the removed page-citation-anchored windowing this feature
+ * deletes (FR-001/FR-002).
  */
-function excerptNearPageHint(parsedDocument: ParsedDocument, pageHint: string | null): string {
-  if (pageHint === null) return '';
-  const match = /^p\.\s*(\d+)$/.exec(pageHint);
-  if (!match) return '';
-  const pageNumber = Number(match[1]);
-  const nearby = parsedDocument.pages.filter(
-    (page) => Math.abs(page.pageNumber - pageNumber) <= 1,
-  );
-  return nearby.map((page) => `[p. ${page.pageNumber}]\n${page.content}`).join('\n\n');
+function formatDocumentContext(parsedDocument: ParsedDocument): string {
+  return parsedDocument.pages
+    .map((page) => `[p. ${page.pageNumber}]\n${page.content}`)
+    .join('\n\n');
 }
 
 function describeFinding(finding: ExtractedFinding): string {
@@ -45,8 +43,7 @@ function describeFinding(finding: ExtractedFinding): string {
     `location: ${finding.location}\n` +
     `statedQuantity: ${finding.statedQuantity ?? 'not stated'}\n` +
     `inspectorHours: ${finding.inspectorHours ?? 'not stated'}\n` +
-    `sourceQuote: ${JSON.stringify(finding.sourceQuote)}\n` +
-    `pageHint: ${finding.pageHint ?? 'not stated'}`
+    `sourceQuote: ${JSON.stringify(finding.sourceQuote)}`
   );
 }
 
@@ -58,16 +55,15 @@ function describeFinding(finding: ExtractedFinding): string {
  * asked to reproduce the finding, document excerpt, or partial findings
  * it was given (specs/004-fix-classification-output). `combineResultStep`
  * below upgrades a flagged value into the full shape after the fact.
+ * The determined-value schemas (`materialQuantityValueSchema`,
+ * `laborHoursValueSchema`) are imported from `./schema` rather than
+ * retyped here (specs/007-pipeline-schema-cleanup FR-006).
  */
 const materialsStepOutputSchema = z.object({
   materials: z.array(
     z.object({
       material: z.string().min(1),
-      quantity: determinedOr(
-        z.object({ amount: z.number().positive(), unit: z.enum(EXTENT_UNIT) }),
-        agentUndeterminedSchema,
-      ),
-      amountSource: z.string().min(1).optional(),
+      quantity: determinedOr(materialQuantityValueSchema, agentUndeterminedSchema),
     }),
   ),
 });
@@ -75,8 +71,7 @@ const materialsStepOutputSchema = z.object({
 const laborStepOutputSchema = z.object({
   labor: z.object({
     laborType: z.string().min(1),
-    hours: determinedOr(z.number().multipleOf(0.25).min(0.25), agentUndeterminedSchema),
-    hoursSource: z.string().min(1).optional(),
+    hours: determinedOr(laborHoursValueSchema, agentUndeterminedSchema),
   }),
 });
 
@@ -120,7 +115,7 @@ const combineResultStep = createStep({
   outputSchema: classificationResultSchema,
   execute: async ({ inputData, getInitData, getStepResult }) => {
     const { finding, parsedDocument } = getInitData<z.infer<typeof findingWithDocumentSchema>>();
-    const documentExcerpt = excerptNearPageHint(parsedDocument, finding.pageHint);
+    const documentExcerpt = formatDocumentContext(parsedDocument);
     const { materials: rawMaterials } = getStepResult(materialsAgentStep);
     const { labor: rawLabor } = getStepResult(laborAgentStep);
 
@@ -143,7 +138,7 @@ const combineResultStep = createStep({
     } = {};
     if (determinedMaterials.length > 0) partialFindingsValue.materials = determinedMaterials;
     if (rawLabor.hours.status === 'determined') {
-      partialFindingsValue.labor = { laborType: rawLabor.laborType, hours: rawLabor.hours.value };
+      partialFindingsValue.labor = { laborType: rawLabor.laborType, hours: rawLabor.hours.value.amount };
     }
 
     const toFullFlag = (agentFlag: { status: 'flagged_for_web_search'; reason: string }) => ({
@@ -154,13 +149,13 @@ const combineResultStep = createStep({
 
     const materials = rawMaterials.map((m) =>
       m.quantity.status === 'determined'
-        ? { material: m.material, quantity: m.quantity, amountSource: m.amountSource }
+        ? { material: m.material, quantity: m.quantity }
         : { material: m.material, quantity: toFullFlag(m.quantity) },
     );
 
     const labor =
       rawLabor.hours.status === 'determined'
-        ? { laborType: rawLabor.laborType, hours: rawLabor.hours, hoursSource: rawLabor.hoursSource }
+        ? { laborType: rawLabor.laborType, hours: rawLabor.hours }
         : { laborType: rawLabor.laborType, hours: toFullFlag(rawLabor.hours) };
 
     const trade = inputData.trade.status === 'determined' ? inputData.trade : toFullFlag(inputData.trade);
@@ -171,7 +166,6 @@ const combineResultStep = createStep({
       scope: finding.scope,
       location: finding.location,
       sourceQuote: finding.sourceQuote,
-      pageHint: finding.pageHint,
       materials,
       labor,
       trade,
@@ -191,10 +185,10 @@ const combineResultStep = createStep({
  * `.then()` — matching `pipeline.ts`'s own established "prompt right
  * before an agent step via a bare `.map()`" pattern exactly, rather than
  * a named step). Each `.map()` between agent steps builds that step's
- * own prompt from `getInitData()` (the finding + its surrounding
- * document excerpt, research.md R2) and, for labor/trade, the earlier
- * steps' own results via `getStepResult()` (research.md R5) — offered as
- * optional context only, never a hard dependency (spec.md FR-005/FR-006).
+ * own prompt from `getInitData()` (the finding + the full parsed
+ * document, research.md R3) and, for labor/trade, the earlier steps' own
+ * results via `getStepResult()` (research.md R5) — offered as optional
+ * context only, never a hard dependency (spec.md FR-005/FR-006).
  * NOT registered on the top-level `Mastra` instance and not exported
  * outside this file — `findingClassificationStep` below is the one thing
  * `workflow.ts` composes.
@@ -205,18 +199,18 @@ const perFindingClassificationWorkflow = createWorkflow({
   outputSchema: classificationResultSchema,
 })
   .map(async ({ inputData }) => {
-    const excerpt = excerptNearPageHint(inputData.parsedDocument, inputData.finding.pageHint);
+    const excerpt = formatDocumentContext(inputData.parsedDocument);
     return {
       prompt:
         "Determine this finding's material(s), if any.\n\n" +
         `FINDING\n${describeFinding(inputData.finding)}\n\n` +
-        `DOCUMENT EXCERPT NEAR THIS FINDING\n${excerpt || '(no page hint available)'}`,
+        `DOCUMENT EXCERPT NEAR THIS FINDING\n${excerpt}`,
     };
   })
   .then(materialsAgentStep)
   .map(async ({ getInitData, getStepResult }) => {
     const { finding, parsedDocument } = getInitData<z.infer<typeof findingWithDocumentSchema>>();
-    const excerpt = excerptNearPageHint(parsedDocument, finding.pageHint);
+    const excerpt = formatDocumentContext(parsedDocument);
     const { materials } = getStepResult(materialsAgentStep);
     const materialsContext =
       materials.length > 0
@@ -234,19 +228,19 @@ const perFindingClassificationWorkflow = createWorkflow({
         `FINDING\n${describeFinding(finding)}\n\n` +
         'MATERIALS ALREADY DETERMINED FOR THIS FINDING (context only, may be empty ' +
         `— that is normal, not a degraded input)\n${materialsContext}\n\n` +
-        `DOCUMENT EXCERPT NEAR THIS FINDING\n${excerpt || '(no page hint available)'}`,
+        `DOCUMENT EXCERPT NEAR THIS FINDING\n${excerpt}`,
     };
   })
   .then(laborAgentStep)
   .map(async ({ getInitData, getStepResult }) => {
     const { finding, parsedDocument } = getInitData<z.infer<typeof findingWithDocumentSchema>>();
-    const excerpt = excerptNearPageHint(parsedDocument, finding.pageHint);
+    const excerpt = formatDocumentContext(parsedDocument);
     const { materials } = getStepResult(materialsAgentStep);
     const { labor } = getStepResult(laborAgentStep);
     const materialsContext = materials.length > 0 ? materials.map((m) => m.material).join(', ') : '(none)';
     const laborContext =
       labor.hours.status === 'determined'
-        ? `${labor.laborType} (${labor.hours.value} hours)`
+        ? `${labor.laborType} (${labor.hours.value.amount} hours)`
         : `${labor.laborType} (hours undetermined)`;
     return {
       prompt:
@@ -254,7 +248,7 @@ const perFindingClassificationWorkflow = createWorkflow({
         `FINDING\n${describeFinding(finding)}\n\n` +
         `MATERIALS: ${materialsContext}\n` +
         `LABOR: ${laborContext}\n\n` +
-        `DOCUMENT EXCERPT NEAR THIS FINDING\n${excerpt || '(no page hint available)'}`,
+        `DOCUMENT EXCERPT NEAR THIS FINDING\n${excerpt}`,
     };
   })
   .then(tradeAgentStep)
@@ -280,7 +274,9 @@ const perFindingClassificationWorkflow = createWorkflow({
  * was considered as an alternative, narrower-scoped mechanism but is not
  * available on the bare `createStep(agent, {...})` composition form
  * these three steps use (research.md R3), so this wrapper's job and
- * scope are exactly what they already were in feature 003.
+ * scope are exactly what they already were in feature 003. Confirmed
+ * this session (specs/007-pipeline-schema-cleanup research.md R8) as a
+ * legitimate, documented Mastra idiom, not a defect — untouched here.
  */
 export const findingClassificationStep = createStep({
   id: 'classify-finding',
@@ -301,13 +297,8 @@ export const findingClassificationStep = createStep({
         findingId: finding.id,
         error: errorMessage,
       });
-      // Bounded to stay within webSearchFlagSchema's own `reason` limit
-      // (max 300) — an unbounded error message (e.g. a verbose Zod
-      // validation error) must never cause THIS fallback path to fail
-      // its own schema validation; that would defeat the one thing this
-      // catch block exists to guarantee.
-      const reason = `classification failed: ${errorMessage}`.slice(0, 300);
-      const documentExcerpt = excerptNearPageHint(parsedDocument, finding.pageHint);
+      const reason = `classification failed: ${errorMessage}`;
+      const documentExcerpt = formatDocumentContext(parsedDocument);
       const flag = {
         status: 'flagged_for_web_search' as const,
         reason,
@@ -319,7 +310,6 @@ export const findingClassificationStep = createStep({
         scope: finding.scope,
         location: finding.location,
         sourceQuote: finding.sourceQuote,
-        pageHint: finding.pageHint,
         materials: [],
         labor: { laborType: 'unavailable — classification step failed', hours: flag },
         trade: flag,

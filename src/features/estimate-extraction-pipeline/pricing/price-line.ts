@@ -6,7 +6,7 @@ import { itemPricerAgent } from './agent';
 import {
   laborPriceResponseSchema,
   materialPriceResponseSchema,
-  pricedLineItemSchema,
+  pricedLineSchema,
 } from './schema';
 import { createModuleLogger } from '../shared/logger';
 
@@ -17,11 +17,18 @@ const log = createModuleLogger('pricing-fanout');
  * Price ONE billable line. Internal step — `pricing/workflow.ts` is the
  * only thing that runs this, via `.foreach`.
  *
- * Resilience: a per-line failure records a 'lookup-failed' price rather
+ * Resilience: a per-line failure records an 'unavailable' price rather
  * than throwing, so one bad line never fails the whole `.foreach` batch.
- * The line itself passes through completely unchanged in both the
- * success and failure paths — classification already gave it a real,
- * resolved quantity/hours; pricing only ever adds a price alongside it.
+ * This mechanism is UNCHANGED by specs/007-pipeline-schema-cleanup
+ * (FR-016; verified against Mastra's own docs, research.md R8, as a
+ * legitimate idiom, not a defect) — only the DATA SHAPE this step
+ * constructs changes, because `pricedLineSchema` itself changed
+ * (FR-011/FR-017): the success path now passes the agent's own
+ * `result.object.price` straight through (both sides are the exact same
+ * `determinedOr()` union), rather than reconstructing a flat object
+ * field-by-field, and the catch-block fallback now returns
+ * `{ status: 'unavailable', reason }` instead of the old flat
+ * `{ unitPrice: null, ... }` shape.
  *
  * This step runs inside `pricingFanoutWorkflow`, which is deliberately
  * NEVER registered on the top-level `Mastra` instance (pricing's fan-out
@@ -40,10 +47,7 @@ export const priceLineStep = createStep({
     zipCode: z.string(),
     line: billableLineSchema,
   }),
-  outputSchema: z.object({
-    line: billableLineSchema,
-    price: pricedLineItemSchema,
-  }),
+  outputSchema: pricedLineSchema,
   execute: async ({ inputData }) => {
     const { line, zipCode, estimateRequestId } = inputData;
 
@@ -74,17 +78,7 @@ export const priceLineStep = createStep({
         );
         const m = result.object;
         if (!m) throw new Error('pricer returned no structured object');
-        return {
-          line,
-          price: {
-            itemId: line.id,
-            unitPrice: m.unitPrice,
-            currency: m.currency,
-            confidence: m.confidence,
-            source: m.source,
-            unavailableReason: m.unavailableReason,
-          },
-        };
+        return { ...line, price: m.price };
       }
 
       const result = await itemPricerAgent.generate(
@@ -93,17 +87,7 @@ export const priceLineStep = createStep({
       );
       const l = result.object;
       if (!l) throw new Error('pricer returned no structured object');
-      return {
-        line,
-        price: {
-          itemId: line.id,
-          unitPrice: l.hourlyRate,
-          currency: l.currency,
-          confidence: l.confidence,
-          source: l.source,
-          unavailableReason: l.unavailableReason,
-        },
-      };
+      return { ...line, price: l.price };
     } catch (e) {
       log.warn('[price-line] per-line failure', {
         estimateRequestId,
@@ -111,14 +95,10 @@ export const priceLineStep = createStep({
         error: e instanceof Error ? e.message : String(e),
       });
       return {
-        line,
+        ...line,
         price: {
-          itemId: line.id,
-          unitPrice: null,
-          currency: 'USD' as const,
-          confidence: 'low' as const,
-          source: 'lookup-failed',
-          unavailableReason: 'Pricing lookup failed; needs contractor quote.',
+          status: 'unavailable' as const,
+          reason: 'Pricing lookup failed; needs contractor quote.',
         },
       };
     }

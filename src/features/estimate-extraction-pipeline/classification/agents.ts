@@ -23,11 +23,11 @@ MATERIAL, and if so, exactly which materials and how much of each.
 
 INPUT
 You receive one finding (action, scope, location, statedQuantity,
-inspectorHours, sourceQuote, pageHint) plus a document excerpt: the text
-of the source report's page(s) surrounding where this finding's
-sourceQuote appears. Use the excerpt only to ground details about THIS
-finding — never borrow a fact that only supports a different finding
-elsewhere on the same page.
+inspectorHours, sourceQuote) plus a document excerpt: the text of the
+source report's page(s) surrounding where this finding's sourceQuote
+appears. Use the excerpt only to ground details about THIS finding —
+never borrow a fact that only supports a different finding elsewhere on
+the same page.
 
 DEFINITION
 A "material" is a physical, purchasable part or component the repair
@@ -39,17 +39,18 @@ invent a material just to have something to return.
 FOR EACH MATERIAL YOU IDENTIFY
 - material: a short, specific name for the physical item (e.g. "wood
   siding board", "exterior trim board", "GFCI receptacle").
-- quantity: a real amount + a real unit (ea, lf, sf, or cy), grounded
-  either in the finding's own statedQuantity/sourceQuote or in a nearby
-  stated measurement in the document excerpt. If the finding or excerpt
-  genuinely gives no real basis for a quantity, return a flagged
-  quantity instead of guessing: { "status": "flagged_for_web_search",
-  "reason": "<specific reason>" } — a short, specific reason, nothing
-  else on that object.
-- amountSource: when quantity is determined, name exactly where the
-  number came from (e.g. "sourceQuote states '20 shingles'", "p. 14
+- quantity: a real amount + a real unit (ea, lf, sf, or cy) PLUS
+  amountSource, all three grouped INSIDE quantity's own "value" object
+  (see HARD RULE 5's exact shape below) — grounded either in the
+  finding's own statedQuantity/sourceQuote or in a nearby stated
+  measurement in the document excerpt. amountSource names exactly where
+  the number came from (e.g. "sourceQuote states '20 shingles'", "p. 14
   states siding section is 12 linear feet") — never a vague label like
-  "estimated". Omit this field entirely when quantity is flagged.
+  "estimated". If the finding or excerpt genuinely gives no real basis
+  for a quantity, return a flagged quantity instead of guessing:
+  { "status": "flagged_for_web_search", "reason": "<specific reason>" }
+  — a short, specific reason, nothing else on that object, and no
+  amountSource anywhere on it.
 
 HARD RULES
 1. NEVER invent a quantity or unit with no real grounding. Flag instead.
@@ -59,8 +60,10 @@ HARD RULES
    failure, not something to avoid.
 4. Do not determine labor, hours, or trade — those are separate steps.
 5. A determined quantity is exactly
-   { "status": "determined", "value": { "amount": <number>, "unit": "<ea|lf|sf|cy>" } };
-   a flagged quantity is exactly
+   { "status": "determined", "value": { "amount": <number>, "unit": "<ea|lf|sf|cy>", "amountSource": "<where this came from>" } } —
+   amountSource is REQUIRED and lives INSIDE "value", never as a sibling
+   of "quantity" and never omitted when status is "determined"; a
+   flagged quantity is exactly
    { "status": "flagged_for_web_search", "reason": "<reason>" }.
    Never mix the two shapes, never add other fields, never change the
    literal "status" value.
@@ -94,13 +97,13 @@ labor, and how many hours.
 
 INPUT
 You receive one finding (action, scope, location, statedQuantity,
-inspectorHours, sourceQuote, pageHint), a document excerpt (the source
-report's page(s) surrounding this finding), and — WHEN AVAILABLE — the
-materials already determined for this same finding. The materials
-context is informational only: if it is absent or empty, that is a
-completely normal labor-only finding, not a degraded or partial case.
-Never treat a missing/empty materials list as a reason to lower quality
-or invent a placeholder.
+inspectorHours, sourceQuote), a document excerpt (the source report's
+page(s) surrounding this finding), and — WHEN AVAILABLE — the materials
+already determined for this same finding. The materials context is
+informational only: if it is absent or empty, that is a completely
+normal labor-only finding, not a degraded or partial case. Never treat a
+missing/empty materials list as a reason to lower quality or invent a
+placeholder.
 
 FOR THE LABOR YOU DETERMINE
 - laborType: a short, specific description (e.g. "siding repair labor",
@@ -108,18 +111,19 @@ FOR THE LABOR YOU DETERMINE
   ALWAYS a real, specific string — even when hours cannot be determined,
   you must still describe what kind of labor this is; never omit
   laborType.
-- hours: a real number in quarter-hour increments (0.25, 0.5, 0.75, 1.0,
-  ...), grounded either in the finding's own inspectorHours (if the
+- hours: a real positive number of hours PLUS hoursSource, grouped
+  INSIDE hours' own "value" object (see HARD RULE 4's exact shape
+  below) — grounded either in the finding's own inspectorHours (if the
   inspector explicitly stated one) or a reasonable, explicitly-cited
-  basis from the document excerpt. If neither the finding nor the
-  excerpt gives a real basis for an hour count, return a flagged hours
-  value instead of guessing: { "status": "flagged_for_web_search",
-  "reason": "<specific reason>" } — a short, specific reason, nothing
-  else on that object.
-- hoursSource: when hours is determined, name exactly where the number
-  came from (e.g. "inspectorHours states 1.5", "p. 9 estimates a
-  half-day for this scope") — never a vague label like "estimated".
-  Omit this field entirely when hours is flagged.
+  basis from the document excerpt. No required rounding — use whatever
+  real number the grounding actually supports. hoursSource names
+  exactly where the number came from (e.g. "inspectorHours states 1.5",
+  "p. 9 estimates a half-day for this scope") — never a vague label
+  like "estimated". If neither the finding nor the excerpt gives a real
+  basis for an hour count, return a flagged hours value instead of
+  guessing: { "status": "flagged_for_web_search", "reason": "<specific
+  reason>" } — a short, specific reason, nothing else on that object,
+  and no hoursSource anywhere on it.
 
 HARD RULES
 1. NEVER invent an hour count with no real grounding. Flag instead.
@@ -128,11 +132,14 @@ HARD RULES
    exactly as completely as material-and-labor findings.
 3. Do not determine materials or trade — those are separate steps.
 4. A determined hours value is exactly
-   { "status": "determined", "value": <number> }; a flagged hours value
-   is exactly { "status": "flagged_for_web_search", "reason": "<reason>" }.
+   { "status": "determined", "value": { "amount": <number>, "hoursSource": "<where this came from>" } } —
+   hoursSource is REQUIRED and lives INSIDE "value", never as a sibling
+   of "hours" and never omitted when status is "determined"; a flagged
+   hours value is exactly
+   { "status": "flagged_for_web_search", "reason": "<reason>" }.
    The top-level response is always a "labor" object wrapping
-   laborType/hours/hoursSource — never a bare object without that
-   wrapper, even when hours is flagged.
+   laborType/hours — never a bare object without that wrapper, even
+   when hours is flagged.
 
 OUTPUT FORMAT
 Return JSON matching the provided structured-output schema exactly. No
@@ -162,10 +169,10 @@ inspection finding's repair, given what materials and labor were
 already determined for it.
 
 INPUT
-You receive one finding (action, scope, location, sourceQuote,
-pageHint), a document excerpt, and the materials and labor already
-determined for this same finding (materials may be an empty array — a
-labor-only finding is normal).
+You receive one finding (action, scope, location, sourceQuote), a
+document excerpt, and the materials and labor already determined for
+this same finding (materials may be an empty array — a labor-only
+finding is normal).
 
 VALID TRADES (choose exactly one, or flag — see below)
 electrical, plumbing, hvac, fire_protection, roofing, siding, carpentry,

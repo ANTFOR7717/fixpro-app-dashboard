@@ -17,8 +17,8 @@ export type Action = (typeof ACTION)[number];
  * `extractionOutputSchema` below). Facts actually stated in the text
  * ONLY: no trade, no unit, no material/labor judgment — those require
  * domain-taxonomy knowledge, not text extraction, and are classification's
- * job. `sourceQuote`/`pageHint` are populated by the agent directly, in
- * the same response as every other field.
+ * job. `sourceQuote` is populated by the agent directly, in the same
+ * response as every other field.
  */
 export const extractedFindingSchema = z.object({
   /** Stable per-run id, e.g. "finding-001". */
@@ -41,11 +41,7 @@ export const extractedFindingSchema = z.object({
    * classification/pricing estimate missing hours downstream. Never invented.
    */
   inspectorHours: z.number().positive().nullable(),
-  sourceQuote: z.string().min(8).max(500),
-  pageHint: z
-    .string()
-    .regex(/^p\.\s*\d+$/)
-    .nullable(),
+  sourceQuote: z.string().min(1),
 });
 
 export type ExtractedFinding = z.infer<typeof extractedFindingSchema>;

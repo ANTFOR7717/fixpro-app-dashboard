@@ -49,6 +49,13 @@ export function buildLineId(
  *    `'labor-all-in-hourly'` — the same rule `pricing/price-line.ts`'s
  *    prompt already relies on. Flagged hours are pushed to
  *    `flaggedForWebSearch` instead.
+ *
+ * `amountSource`/`hoursSource` are read from inside each determined
+ * branch's own value (`material.quantity.value.amountSource`,
+ * `result.labor.hours.value.hoursSource`) — no longer dangling optional
+ * siblings, so no runtime guard is needed to enforce their presence; the
+ * schema itself makes "determined but sourceless" unrepresentable
+ * (specs/007-pipeline-schema-cleanup FR-004/FR-005).
  */
 function flattenOneResult(result: ClassificationResult): {
   lines: z.infer<typeof billableLineSchema>[];
@@ -69,11 +76,6 @@ function flattenOneResult(result: ClassificationResult): {
       flagged.push(material.quantity);
       return;
     }
-    if (material.amountSource === undefined) {
-      throw new Error(
-        `material "${material.material}" has a determined quantity but no amountSource`,
-      );
-    }
     materialLines.push({
       id: buildLineId(result.findingId, 'material', index),
       trade,
@@ -81,11 +83,10 @@ function flattenOneResult(result: ClassificationResult): {
       scope: result.scope,
       location: result.location,
       sourceQuote: result.sourceQuote,
-      pageHint: result.pageHint,
       material: material.material,
       quantity: material.quantity.value.amount,
       unit: material.quantity.value.unit,
-      amountSource: material.amountSource,
+      amountSource: material.quantity.value.amountSource,
       costType: 'material',
       pricingBasis: 'material-part-only',
     });
@@ -95,9 +96,6 @@ function flattenOneResult(result: ClassificationResult): {
   if (result.labor.hours.status !== 'determined') {
     flagged.push(result.labor.hours);
   } else {
-    if (result.labor.hoursSource === undefined) {
-      throw new Error('labor has determined hours but no hoursSource');
-    }
     lines.push({
       id: buildLineId(result.findingId, 'labor'),
       trade,
@@ -105,11 +103,10 @@ function flattenOneResult(result: ClassificationResult): {
       scope: result.scope,
       location: result.location,
       sourceQuote: result.sourceQuote,
-      pageHint: result.pageHint,
       laborType: result.labor.laborType,
-      quantity: result.labor.hours.value,
+      quantity: result.labor.hours.value.amount,
       unit: 'hrs',
-      hoursSource: result.labor.hoursSource,
+      hoursSource: result.labor.hours.value.hoursSource,
       costType: 'labor',
       pricingBasis: materialLines.length > 0 ? 'labor-install-hourly' : 'labor-all-in-hourly',
     });

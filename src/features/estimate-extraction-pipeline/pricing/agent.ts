@@ -4,7 +4,8 @@ import { pioneerGateway } from '../shared/gateway';
 /**
  * The pricer has exactly one job: given ONE billable line and a zip code,
  * return a single defensible price — a per-unit material price, or an
- * hourly labor rate — or null. It never hallucinates a price.
+ * hourly labor rate — or an explicit "unavailable" flag. It never
+ * hallucinates a price.
  *
  * Internal to the pricing module — only pricing/price-line.ts calls
  * `.generate()` on this.
@@ -25,17 +26,24 @@ computed facts; obey them exactly. The structured-output schema you are
 given differs by costType — match it exactly.
 
 OUTPUT
-MATERIAL lines: unitPrice (integer whole USD, or null), currency, confidence,
-source, unavailableReason.
-LABOR lines: hourlyRate (integer whole USD/hr, or null), currency,
-confidence, source, unavailableReason.
+Your entire response is a single top-level "price" object wrapping one of
+the two shapes below — never the determined/unavailable shape bare at the
+top level.
+
+Return a determined price when you have a defensible number:
+{ "price": { "status": "determined", "value": { "unitPrice": <int>,
+"currency": "USD", "confidence": "<high|medium|low>", "source": "<label>" } } }
+(MATERIAL lines; LABOR lines use "hourlyRate" in place of "unitPrice").
+If you lack a defensible number, return instead:
+{ "price": { "status": "unavailable", "reason": "<one-sentence reason>" } }
 
 HARD RULES
 1. NEVER hallucinate a price. If you lack a defensible number for this work
-   in this zip code, return null with a one-sentence unavailableReason.
+   in this zip code, return the unavailable shape with a one-sentence
+   reason.
 2. NEVER invent a citation. "source" is a coarse label ("national average",
    "trade rule-of-thumb"), never a URL.
-3. NEVER produce a range. Pick a single integer or null.
+3. NEVER produce a range. Pick a single integer, or the unavailable shape.
 4. Local area means the SUPPLIED zip code. A national average is acceptable
    with confidence = "low" and that noted in source.
 5. MATERIAL lines ("material-part-only"): unitPrice is the price of the part

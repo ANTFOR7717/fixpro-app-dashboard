@@ -1,3 +1,5 @@
+import type { Trade, ExtentUnit } from '@/features/estimate-extraction-pipeline/classification';
+
 /**
  * Format a whole-USD integer dollar amount as a US currency string.
  * Inputs are integers (the pricer agent and DB schema enforce that).
@@ -59,19 +61,21 @@ export function formatPartyRole(role: string): string {
 
 /**
  * Display label for a `BillableItem.trade`. The schema's `TRADE` enum is
- * lowercase short codes ("hvac", "interior", ...); invoices and estimates
- * print these as capitalized category labels ("HVAC", "Interior"). The
+ * lowercase short codes ("hvac", "siding", ...); invoices and estimates
+ * print these as capitalized category labels ("HVAC", "Siding"). The
  * report uses this as the small eyebrow above each line title.
  *
- * Covers both the current 23-value taxonomy (classification's rebuilt
- * `TRADE`, specs/003-classification-rebuild) and the retired 11-value
- * taxonomy's remaining special-cased labels ('hvac', 'other') still
- * possibly present on rows persisted before that rebuild — the retired
- * taxonomy's other plain-word values ('structural', 'appliance',
- * 'exterior', 'interior') are not special-cased because the `default`
- * branch's title-casing already renders them identically.
+ * Exhaustively covers the current 23-value taxonomy (classification's
+ * rebuilt `TRADE`, specs/003-classification-rebuild) only. The retired
+ * 11-value taxonomy's special-cased labels this function used to also
+ * carry (`structural`, `appliance`, `exterior`, `interior`, `other`) were
+ * dead code — those values could only ever have reached this function
+ * from v1/v2-persisted rows, and v1/v2 support is deleted entirely
+ * (specs/007-pipeline-schema-cleanup finding #17) — so `trade`'s
+ * parameter type tightens from `string` to the real `Trade` union
+ * (finding #15/FR-020): every live caller now only ever passes one.
  */
-export function formatTradeLabel(trade: string): string {
+export function formatTradeLabel(trade: Trade): string {
   switch (trade) {
     case 'hvac':
       return 'HVAC';
@@ -85,8 +89,6 @@ export function formatTradeLabel(trade: string): string {
       return 'Roofing';
     case 'siding':
       return 'Siding';
-    case 'structural':
-      return 'Structural';
     case 'carpentry':
       return 'Carpentry';
     case 'drywall':
@@ -121,18 +123,6 @@ export function formatTradeLabel(trade: string): string {
       return 'Pest Control';
     case 'general_contractor':
       return 'General Contractor';
-    case 'appliance':
-      return 'Appliance';
-    case 'exterior':
-      return 'Exterior';
-    case 'interior':
-      return 'Interior';
-    case 'other':
-      return 'General';
-    default: {
-      if (trade.length === 0) return 'General';
-      return trade.charAt(0).toUpperCase() + trade.slice(1);
-    }
   }
 }
 
@@ -237,25 +227,27 @@ function titleCaseToken(token: string, acronyms: ReadonlySet<string>): string {
  * "CY", "HRS"). v3 lines carry their unit structurally — material lines
  * are ea/lf/sf/cy and labor lines are always hrs, enforced by the
  * classification module's discriminated union, so this function never
- * decides anything for them. Legacy v1/v2 rows render whatever unit they
- * were persisted with, including the retired 'sqft' alias (displays as
- * "SF").
+ * decides anything for them.
+ *
+ * Exhaustively covers the current unit set only. The retired legacy
+ * `'sqft'` alias this function used to also render as "SF" was dead code
+ * — it only ever appeared in `envelope.ts`'s now-deleted `LEGACY_UNIT`
+ * array, never in the current `EXTENT_UNIT` enum — so `unit`'s parameter
+ * type tightens from `string` to the real unit union (finding #16/FR-021):
+ * every live caller now only ever passes one of those.
  */
-export function formatUnit(unit: string): string {
+export function formatUnit(unit: ExtentUnit | 'hrs'): string {
   switch (unit) {
     case 'ea':
       return 'EA';
     case 'lf':
       return 'LF';
     case 'sf':
-    case 'sqft':
       return 'SF';
     case 'cy':
       return 'CY';
     case 'hrs':
       return 'HRS';
-    default:
-      return unit.toUpperCase();
   }
 }
 
