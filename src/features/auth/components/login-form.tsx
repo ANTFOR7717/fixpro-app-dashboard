@@ -8,7 +8,7 @@ import React, { useId, useState } from "react";
 import { Button } from "@/design-systems/shadcn/components/button";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { loginUser } from "@/features/auth/api/login";
+import { authClientProvider } from "@/auth/client-provider";
 import { FormSuccess, FormError } from "@/design-systems/shadcn/components/form-messages";
 import { loginSchema, type LoginSchema } from "@/features/auth/schemas/login-schema";
 
@@ -38,12 +38,15 @@ const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
 
   const onSubmit = async (data: LoginSchema) => {
     setFormState({});
-    const result = await loginUser(data);
-    if (result.success) {
-      setFormState({ success: result.success.reason });
+
+    try {
+      await authClientProvider.signInEmail(data.email, data.password);
+      setFormState({ success: "Login successful" });
       onLoginSuccess();
-    } else if (result.error) {
-      setFormState({ error: result.error.reason });
+    } catch (error) {
+      setFormState({
+        error: error instanceof Error ? error.message : "Something went wrong.",
+      });
     }
   };
 
