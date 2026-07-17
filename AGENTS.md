@@ -99,7 +99,7 @@ Non-trivial features should follow the planning workflow:
     PKG=src/features/estimate-extraction-pipeline
     grep -rn "from '.*\/document\/\(schema\|parse\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/document/"
     grep -rn "from '.*\/extraction\/\(schema\|agent\|scorer\|steps\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/extraction/"
-    grep -rn "from '.*\/classification\/\(schema\|agent\|steps\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/classification/"
+    grep -rn "from '.*\/classification\/\(schema\|agents\|workflow\|finding-workflow\|flatten\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/classification/"
     grep -rn "from '.*\/pricing\/\(schema\|agent\|price-line\|workflow\)'" src --include="*.ts" --include="*.tsx" | grep -v "^$PKG/pricing/"
     ```
     All four must return zero results.

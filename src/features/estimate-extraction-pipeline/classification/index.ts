@@ -1,22 +1,21 @@
 /**
  * THE DOOR — classification's complete public contract. `pipeline.ts`
- * composes these steps directly; nothing in this module calls
- * `.generate()`/`.stream()` by hand anywhere.
+ * composes `classificationFanoutWorkflow` directly as a step (Mastra's
+ * own documented "workflows as steps" pattern — `docs/workflows/overview`
+ * — matching how `extraction/index.ts` already re-exports
+ * `findingExtractorAgentStep` as a ready-composed primitive, not a
+ * wrapping function). Nothing in this module calls `.generate()`/
+ * `.stream()` by hand anywhere.
  */
 export {
-  billableLineSchema,
-  type BillableLine,
   TRADE,
-  type Trade,
   EXTENT_UNIT,
-  type ExtentUnit,
-  lineClassificationSchema,
-  type LineClassification,
+  billableLineSchema,
+  webSearchFlagSchema,
+  type BillableLine,
+  type Trade,
+  type WebSearchFlag,
 } from './schema';
-export {
-  buildClassificationPrompt,
-  lineClassifierAgentStep,
-  buildLinesStep,
-} from './steps';
-/** Re-exported for Mastra-instance registration ONLY — no module calls this directly. */
-export { lineClassifierAgent } from './agent';
+export { classificationFanoutWorkflow } from './workflow';
+/** Re-exported for Studio registration ONLY — no module calls these directly. */
+export { materialsAgent, laborAgent, tradeAgent } from './agents';
