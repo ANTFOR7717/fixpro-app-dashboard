@@ -57,5 +57,5 @@ HARD RULES
 Do not include any commentary, explanation, preamble, or text outside the
 JSON.
 `,
-  model: pioneerGateway.chat('claude-fable-5'),
+  model: pioneerGateway.chat('pioneer/auto'),
 });

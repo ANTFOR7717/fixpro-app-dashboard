@@ -69,7 +69,7 @@ OUTPUT FORMAT
 Return JSON matching the provided structured-output schema exactly. No
 commentary, no preamble, no text outside the JSON.
 `,
-  model: pioneerGateway.chat('claude-fable-5'),
+  model: pioneerGateway.chat('pioneer/auto'),
 });
 
 /**
@@ -138,7 +138,7 @@ OUTPUT FORMAT
 Return JSON matching the provided structured-output schema exactly. No
 commentary, no preamble, no text outside the JSON.
 `,
-  model: pioneerGateway.chat('claude-fable-5'),
+  model: pioneerGateway.chat('pioneer/auto'),
 });
 
 /**
@@ -209,5 +209,5 @@ OUTPUT FORMAT
 Return JSON matching the provided structured-output schema exactly. No
 commentary, no preamble, no text outside the JSON.
 `,
-  model: pioneerGateway.chat('claude-fable-5'),
+  model: pioneerGateway.chat('pioneer/auto'),
 });
