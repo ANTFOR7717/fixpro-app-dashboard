@@ -27,8 +27,8 @@ export async function RecentEstimatesWidget() {
 
   if (recentUploads.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-border rounded-xl bg-muted/30">
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
           <FileText className="h-6 w-6 text-primary" />
         </div>
         <h3 className="text-lg font-semibold text-foreground tracking-tight">No estimates processed</h3>
@@ -48,13 +48,13 @@ export async function RecentEstimatesWidget() {
   }
 
   return (
-    <div className="border rounded-xl overflow-hidden shadow-sm bg-card">
+    <div className="overflow-hidden">
       <div className="divide-y divide-border">
         {recentUploads.map((upload) => {
           const content = (
             <>
-              <div className="flex items-center gap-4 overflow-hidden">
-                <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
+              <div className="flex min-w-0 items-center gap-4 overflow-hidden">
+                <div className="shrink-0 rounded-md bg-muted p-2.5 text-primary">
                   <FileText className="h-5 w-5" />
                 </div>
                 <div className="flex flex-col overflow-hidden">
@@ -68,7 +68,7 @@ export async function RecentEstimatesWidget() {
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0 pl-4">
+              <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end sm:pl-4">
                 <EstimateStatusBar
                   status={upload.status}
                   errorMessage={upload.errorMessage}
@@ -85,7 +85,7 @@ export async function RecentEstimatesWidget() {
               <Link
                 key={upload.id}
                 href={`/dashboard/estimate/${upload.id}`}
-                className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                className="flex flex-col gap-4 p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
               >
                 {content}
               </Link>
@@ -93,7 +93,7 @@ export async function RecentEstimatesWidget() {
           }
 
           return (
-            <div key={upload.id} className="flex items-center justify-between p-4">
+            <div key={upload.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
               {content}
             </div>
           );

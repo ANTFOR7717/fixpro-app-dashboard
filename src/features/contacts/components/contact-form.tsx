@@ -71,21 +71,21 @@ export function ContactForm({ mode, contact, onDone }: ContactFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <FormError message={state?.error || ""} />
       <FormSuccess message={state?.message || ""} />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="fullName">Full Name *</Label>
           <Input id="fullName" {...register("fullName")} />
-          {errors.fullName && <p className="text-xs text-red-500">{errors.fullName.message}</p>}
+          {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Phone *</Label>
           <Input id="phone" type="tel" {...register("phone")} />
-          {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
+          {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email *</Label>
           <Input id="email" type="email" {...register("email")} />
-          {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+          {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
       </div>
       <SubmitButton mode={mode} />

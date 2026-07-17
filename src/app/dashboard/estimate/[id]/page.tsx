@@ -21,7 +21,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
   const envelope = parseSummaryEnvelope(row.summary);
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 px-6 py-10">
+    <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6 md:px-6 md:py-8 lg:px-8">
       <div>
         <Button variant="ghost" size="sm" asChild>
           <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Back to dashboard</Link>
