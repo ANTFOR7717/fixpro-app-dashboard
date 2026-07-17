@@ -44,7 +44,7 @@ function SubmitButton({ pending }: { pending: boolean }) {
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className="h-10 w-full text-sm font-semibold"
+      className="w-full h-12 text-lg font-semibold"
     >
       {pending ? (
         <>
@@ -137,15 +137,15 @@ export function EstimateView({ contacts }: EstimateViewProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-8 p-0">
+    <div className="max-w-3xl space-y-6 p-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Get Repair Estimate</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">Get Repair Estimate</h1>
         <p className="text-muted-foreground">Provide information and upload your inspection report (PDF).</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <Card className="shadow-none">
-          <CardContent className="space-y-8 pt-6">
+        <Card>
+          <CardContent className="pt-6 space-y-8">
             <div className="space-y-6">
               {/* Role Selection */}
               <div className="space-y-2">
@@ -154,7 +154,7 @@ export function EstimateView({ contacts }: EstimateViewProps) {
                   onValueChange={(v) => setValue("submitterRole", v as "agent" | "homeowner")}
                   defaultValue="agent"
                 >
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Select your role" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select your role" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="agent">Real Estate Agent</SelectItem>
                     <SelectItem value="homeowner">Homeowner</SelectItem>
@@ -166,9 +166,9 @@ export function EstimateView({ contacts }: EstimateViewProps) {
               <Separator />
 
               {/* Agents Grid */}
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold">Listing Agent Information</Label>
+                  <Label className="text-lg font-bold">Listing Agent Information</Label>
                   <ContactPicker
                     label="Use saved contact"
                     contacts={contacts}
@@ -181,31 +181,31 @@ export function EstimateView({ contacts }: EstimateViewProps) {
                   <div className="space-y-2">
                     <Label htmlFor="listingAgentName">Full Name *</Label>
                     <Input id="listingAgentName" {...register("listingAgentName")} />
-                    {errors.listingAgentName && <p className="text-xs text-destructive">{errors.listingAgentName.message}</p>}
+                    {errors.listingAgentName && <p className="text-xs text-red-500">{errors.listingAgentName.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="listingAgentPhone">Cell Number *</Label>
                     <Input id="listingAgentPhone" type="tel" {...register("listingAgentPhone")} />
-                    {errors.listingAgentPhone && <p className="text-xs text-destructive">{errors.listingAgentPhone.message}</p>}
+                    {errors.listingAgentPhone && <p className="text-xs text-red-500">{errors.listingAgentPhone.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="listingAgentEmail">Email *</Label>
                     <Input id="listingAgentEmail" type="email" {...register("listingAgentEmail")} />
-                    {errors.listingAgentEmail && <p className="text-xs text-destructive">{errors.listingAgentEmail.message}</p>}
+                    {errors.listingAgentEmail && <p className="text-xs text-red-500">{errors.listingAgentEmail.message}</p>}
                   </div>
                   <label className="flex items-center gap-2 text-sm text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={saveListingAsContact}
                       onChange={(e) => setSaveListingAsContact(e.target.checked)}
-                      className="h-4 w-4 accent-primary"
+                      className="h-4 w-4"
                     />
                     Save listing agent as a contact
                   </label>
                 </div>
 
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold">Buyer Agent Information</Label>
+                  <Label className="text-lg font-bold">Buyer Agent Information</Label>
                   <ContactPicker
                     label="Use saved contact"
                     contacts={contacts}
@@ -218,24 +218,24 @@ export function EstimateView({ contacts }: EstimateViewProps) {
                   <div className="space-y-2">
                     <Label htmlFor="buyerAgentName">Full Name *</Label>
                     <Input id="buyerAgentName" {...register("buyerAgentName")} />
-                    {errors.buyerAgentName && <p className="text-xs text-destructive">{errors.buyerAgentName.message}</p>}
+                    {errors.buyerAgentName && <p className="text-xs text-red-500">{errors.buyerAgentName.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="buyerAgentPhone">Cell Number *</Label>
                     <Input id="buyerAgentPhone" type="tel" {...register("buyerAgentPhone")} />
-                    {errors.buyerAgentPhone && <p className="text-xs text-destructive">{errors.buyerAgentPhone.message}</p>}
+                    {errors.buyerAgentPhone && <p className="text-xs text-red-500">{errors.buyerAgentPhone.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="buyerAgentEmail">Email *</Label>
                     <Input id="buyerAgentEmail" type="email" {...register("buyerAgentEmail")} />
-                    {errors.buyerAgentEmail && <p className="text-xs text-destructive">{errors.buyerAgentEmail.message}</p>}
+                    {errors.buyerAgentEmail && <p className="text-xs text-red-500">{errors.buyerAgentEmail.message}</p>}
                   </div>
                   <label className="flex items-center gap-2 text-sm text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={saveBuyerAsContact}
                       onChange={(e) => setSaveBuyerAsContact(e.target.checked)}
-                      className="h-4 w-4 accent-primary"
+                      className="h-4 w-4"
                     />
                     Save buyer agent as a contact
                   </label>
@@ -246,17 +246,17 @@ export function EstimateView({ contacts }: EstimateViewProps) {
 
               {/* Property Details */}
               <div className="space-y-4">
-                <Label className="text-base font-semibold">Property Details</Label>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <Label className="text-lg font-bold">Property Details</Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2 space-y-2">
                     <Label htmlFor="propertyAddress">Property Address *</Label>
                     <Input id="propertyAddress" {...register("propertyAddress")} />
-                    {errors.propertyAddress && <p className="text-xs text-destructive">{errors.propertyAddress.message}</p>}
+                    {errors.propertyAddress && <p className="text-xs text-red-500">{errors.propertyAddress.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="zipCode">Zip code *</Label>
                     <Input id="zipCode" {...register("zipCode")} />
-                    {errors.zipCode && <p className="text-xs text-destructive">{errors.zipCode.message}</p>}
+                    {errors.zipCode && <p className="text-xs text-red-500">{errors.zipCode.message}</p>}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -265,7 +265,7 @@ export function EstimateView({ contacts }: EstimateViewProps) {
                     onValueChange={(v) => setValue("timeframe", v as (typeof TIMEFRAME_OPTIONS)[number])}
                     defaultValue="ASAP (24-48 hours)"
                   >
-                    <SelectTrigger className="w-full"><SelectValue placeholder="Select timeframe" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select timeframe" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ASAP (24-48 hours)">ASAP (24-48 hours)</SelectItem>
                       <SelectItem value="This Week (2-7 days)">This Week (2-7 days)</SelectItem>
@@ -274,21 +274,21 @@ export function EstimateView({ contacts }: EstimateViewProps) {
                     </SelectContent>
                   </Select>
                   <input type="hidden" {...register("timeframe")} />
-                  {errors.timeframe && <p className="text-xs text-destructive">{errors.timeframe.message}</p>}
+                  {errors.timeframe && <p className="text-xs text-red-500">{errors.timeframe.message}</p>}
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-6 text-center">
-          <Upload className="mb-3 h-8 w-8 text-muted-foreground" />
+        <div className="p-8 border-2 border-dashed border-border rounded-xl bg-muted/50 flex flex-col items-center justify-center text-center">
+          <Upload className="h-10 w-10 text-muted-foreground mb-2" />
           <input
             type="file"
             name="file"
             ref={fileInputRef}
             accept="application/pdf"
-            className="w-full max-w-sm cursor-pointer text-sm text-muted-foreground file:mr-4 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-accent"
+            className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 w-full max-w-xs cursor-pointer"
             required
           />
         </div>

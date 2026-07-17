@@ -10,13 +10,13 @@ export default function DashboardOverview() {
   const widgets = featureRegistry.getWidgets();
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 md:p-6 lg:p-8">
+    <div className="flex flex-col gap-4 p-4 md:p-6">
       {/* Quick Actions */}
-      <Card className="shadow-none">
+      <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <div className="space-y-1.5">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Settings className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
               Quick Actions
             </CardTitle>
             <CardDescription>
@@ -26,19 +26,19 @@ export default function DashboardOverview() {
           <RefreshButton />
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action) => (
               <Button
                 key={action.label}
                 variant="outline"
-                className="h-11 justify-start rounded-lg px-3.5 shadow-none"
+                className="h-auto p-4 flex-col gap-2"
                 asChild
               >
                 <Link
                   href={action.href}
                   {...(action.external ? { target: "_blank" } : {})}
                 >
-                  <action.icon className="h-4 w-4 text-muted-foreground" />
+                  <action.icon className="h-5 w-5" />
                   <span>{action.label}</span>
                 </Link>
               </Button>
@@ -48,7 +48,7 @@ export default function DashboardOverview() {
       </Card>
 
       {/* Dynamic Feature Widgets Grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {widgets.map((widget) => {
           // Map abstract sizes to 12-column grid spans
           const sizeMap = {
@@ -60,7 +60,7 @@ export default function DashboardOverview() {
           const span = sizeMap[widget.size || "full"];
 
           return (
-            <Card key={widget.id} className={`${span} shadow-none`}>
+            <Card key={widget.id} className={span}>
               <CardHeader>
                 <CardTitle>{widget.title}</CardTitle>
                 {widget.description && (

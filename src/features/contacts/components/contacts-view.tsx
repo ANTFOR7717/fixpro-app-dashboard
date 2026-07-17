@@ -13,24 +13,24 @@ export async function ContactsView() {
   const contacts = await listContactsForUser(session.user.id);
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-8 p-0">
+    <div className="max-w-3xl space-y-6 p-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Contacts</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">Contacts</h1>
         <p className="text-muted-foreground">
           Save agents you work with so you don&apos;t have to retype them on every estimate.
         </p>
       </div>
 
-      <Card className="shadow-none">
-        <CardContent className="space-y-6 pt-6">
+      <Card>
+        <CardContent className="pt-6 space-y-6">
           <ContactForm mode="create" />
           <Separator />
           {contacts.length === 0 ? (
-            <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">No saved contacts yet.</p>
+            <p className="text-sm text-muted-foreground">No saved contacts yet.</p>
           ) : (
             <ul className="divide-y divide-border">
               {contacts.map((c) => (
-                <li key={c.id} className="grid gap-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                <li key={c.id} className="py-4 flex items-start justify-between gap-4">
                   <div className="space-y-0.5">
                     <p className="font-semibold">{c.fullName}</p>
                     <p className="text-sm text-muted-foreground">{c.email}</p>

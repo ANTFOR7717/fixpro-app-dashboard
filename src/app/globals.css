@@ -125,58 +125,6 @@ body {
   font-family: var(--font-inter);
 }
 
-/* Dashboard-only visual system. The route marker prevents these tokens and
-   shared-shell refinements from leaking into marketing, auth, or admin. */
-body:has(.dashboard-ui) {
-  --background: oklch(0.975 0.004 160);
-  --foreground: oklch(0.22 0.018 160);
-  --card: oklch(0.995 0.002 160);
-  --card-foreground: oklch(0.22 0.018 160);
-  --muted: oklch(0.955 0.008 160);
-  --muted-foreground: oklch(0.48 0.018 160);
-  --accent: oklch(0.94 0.018 160);
-  --accent-foreground: oklch(0.25 0.035 160);
-  --border: oklch(0.89 0.008 160);
-  --input: oklch(0.86 0.012 160);
-  --sidebar: oklch(0.965 0.008 160);
-  --sidebar-accent: oklch(0.925 0.024 160);
-  --sidebar-border: oklch(0.88 0.012 160);
-}
-
-.dark body:has(.dashboard-ui) {
-  --background: oklch(0.145 0.012 160);
-  --foreground: oklch(0.94 0.008 160);
-  --card: oklch(0.18 0.014 160);
-  --card-foreground: oklch(0.94 0.008 160);
-  --muted: oklch(0.22 0.014 160);
-  --muted-foreground: oklch(0.68 0.014 160);
-  --accent: oklch(0.24 0.022 160);
-  --accent-foreground: oklch(0.94 0.008 160);
-  --border: oklch(0.29 0.014 160);
-  --input: oklch(0.3 0.014 160);
-  --sidebar: oklch(0.13 0.012 160);
-  --sidebar-accent: oklch(0.23 0.022 160);
-  --sidebar-border: oklch(0.27 0.014 160);
-}
-
-body:has(.dashboard-ui) [data-slot="sidebar-inset"] > header {
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in oklch, var(--background) 92%, transparent);
-}
-
-body:has(.dashboard-ui) [data-slot="sidebar-inner"] {
-  border: 1px solid var(--sidebar-border);
-  border-radius: var(--radius-lg);
-}
-
-body:has(.dashboard-ui) [data-slot="sidebar-menu-button"][data-active="true"] {
-  box-shadow: inset 3px 0 0 var(--sidebar-primary);
-}
-
-body:has(.dashboard-ui) [data-slot="breadcrumb-list"] {
-  font-size: 0.8125rem;
-}
-
 /* Modern Material Design Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
