@@ -24,7 +24,7 @@
     "eval:pipeline": "tsx --env-file=.env eval/pipeline/run.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.62",
+    "@ai-sdk/openai": "^4.0.16",
     "@better-auth/infra": "0.1.13",
     "@hookform/resolvers": "^5.0.1",
     "@mastra/core": "^1.50.1",
