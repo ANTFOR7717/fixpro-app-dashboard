@@ -1,16 +1,5 @@
 import { z } from 'zod';
 
-export const ACTION = [
-  'repair',
-  'replace',
-  'install',
-  'remove',
-  'service',
-  'evaluate',
-] as const;
-
-export type Action = (typeof ACTION)[number];
-
 /**
  * PUBLIC shape — what extraction hands to classification, and also the
  * agent's own structured-output schema directly (see
@@ -23,25 +12,25 @@ export type Action = (typeof ACTION)[number];
 export const extractedFindingSchema = z.object({
   /** Stable per-run id, e.g. "finding-001". */
   id: z.string(),
-  action: z.enum(ACTION),
+  /**
+   * A single, specific verb naming what the contractor would DO —
+   * derived by the agent from the report's own action language, not
+   * constrained to a fixed list. See `extraction/agent.ts`'s
+   * instructions for grounding rules.
+   */
+  action: z.string().min(1),
   /** Short, specific noun phrase naming what is acted on. */
   scope: z.string().min(1),
   /** Verbatim location language from the report. */
   location: z.string().min(1),
-  /**
-   * Literal count ONLY when the text states one (a digit, a written-out
-   * number, or "both" -> 2). Null in every other case — including
-   * open-ended language like "all"/"every"/"remaining", since deciding
-   * how that bills (e.g. "1 = the whole job") is a classification
-   * convention, not a fact extraction observed. Never a default.
-   */
-  statedQuantity: z.number().int().min(1).nullable(),
-  /**
-   * Hours ONLY when the inspector explicitly stated them. Null otherwise —
-   * classification/pricing estimate missing hours downstream. Never invented.
-   */
-  inspectorHours: z.number().positive().nullable(),
   sourceQuote: z.string().min(1),
+  /**
+   * The report page this finding was found on. Extraction runs one agent
+   * call per page (extraction/steps.ts's `extractionFanoutWorkflow`), so
+   * this is the exact page number that call's own prompt already stated
+   * — the agent copies it, not infers it.
+   */
+  page: z.number().int().min(1),
 });
 
 export type ExtractedFinding = z.infer<typeof extractedFindingSchema>;

@@ -20,8 +20,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "mastra:dev": "mastra dev --dir src/features/estimate-extraction-pipeline",
-    "mastra:build": "mastra build --dir src/features/estimate-extraction-pipeline",
-    "eval:pipeline": "tsx --env-file=.env eval/pipeline/run.ts"
+    "mastra:build": "mastra build --dir src/features/estimate-extraction-pipeline"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.62",

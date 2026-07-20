@@ -21,10 +21,9 @@ interface TriggerSummarizeEstimateParams {
 /**
  * THE SINGLE WRITER of estimate-row state (responsibility #4). The AI
  * pipeline (`mastra.getWorkflow('summarize-estimate')`, i.e. `pipeline.ts`)
- * is pure — it returns `{ lines, parsedDocument, flaggedForWebSearch }`
- * (one merged `lines` array, not a separate `prices` array — see
- * `pipeline.ts`'s own `priceStep`) or its run fails — and this function
- * owns the entire persistence lifecycle:
+ * is pure — it returns `{ lines }` (no parsed document; only extraction
+ * ever reads the source document — see `pipeline.ts`) or its run fails —
+ * and this function owns the entire persistence lifecycle:
  *
  *   processing → run the pipeline once → completed (v3 envelope)
  *                                      | failed   (classified message)
@@ -60,8 +59,6 @@ export function triggerSummarizeEstimate({
           kind: SUMMARY_ENVELOPE_KIND,
           version: SUMMARY_ENVELOPE_VERSION_3,
           lines: result.result.lines,
-          parsedDocument: result.result.parsedDocument,
-          flaggedForWebSearch: result.result.flaggedForWebSearch,
         };
         await db
           .update(estimateRequestTable)

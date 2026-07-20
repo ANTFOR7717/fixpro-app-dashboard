@@ -5,7 +5,6 @@ import { Badge } from '@/design-systems/shadcn/components/badge';
 import { Separator } from '@/design-systems/shadcn/components/separator';
 import { Switch } from '@/design-systems/shadcn/components/switch';
 import {
-  PRICE_UNAVAILABLE,
   formatCostType,
   formatCurrency,
   formatLineTotal,
@@ -14,68 +13,38 @@ import {
   formatTradeLabel,
   formatUnit,
 } from '@/features/estimate/lib/format';
-import type { PricedLine } from '@/features/estimate-extraction-pipeline/pricing';
+import type { EnrichedLine } from '@/features/estimate-extraction-pipeline/enrichment';
 import type { Trade } from '@/features/estimate-extraction-pipeline/classification';
-import type { ParsedDocument } from '@/features/estimate-extraction-pipeline/document';
 
 interface ItemsSectionProps {
-  lines: PricedLine[];
-  parsedDocument: ParsedDocument;
+  lines: EnrichedLine[];
 }
 
 /**
- * The determined price amount for one line, or `null` when unavailable —
- * the one place this component narrows `PricedLine.price`'s
- * `determinedOr()` union (reading its own `status` tag, the documented,
- * unavoidable way to consume a discriminated union — spec.md's Governing
- * Rule). Kept as a LOCAL, type-only-import-compatible copy rather than
- * importing `pricing/schema.ts`'s exported `priceAmount()` through the
- * `pricing` door: this file is `'use client'`, and every existing import
- * from `pricing` here is deliberately `import type` so it's erased at
- * compile time — importing a real runtime value from that door pulls
- * `pricing/index.ts`'s full module graph (including `workflow.ts`/
- * `agent.ts`'s Mastra/Node-only code, e.g. `stream/web`) into the browser
- * bundle, which `pnpm build` catches as a hard failure. The eval pricing
- * scorer (a Node-only script, no client-bundle constraint) still imports
- * the shared `pricing/schema.ts` version.
- */
-function priceAmount(line: PricedLine): number | null {
-  if (line.price.status !== 'determined') return null;
-  return line.costType === 'material' ? line.price.value.unitPrice : line.price.value.hourlyRate;
-}
-
-/**
- * Renders the "Billable items" block of the report. v1/v2 legacy
- * estimates are no longer supported (revised FR-003,
- * specs/007-pipeline-schema-cleanup) — this component only ever
- * receives the current, merged-price v3 shape, so there is no
- * runtime type-discriminant or separate rendering path to maintain.
+ * Renders the "Billable items" block of the report.
  *
- * Three viewer-side toggles:
+ * Two viewer-side toggles:
  *
  *   - "Show source quote" — controls the italic verbatim excerpt from the
  *     inspection report.
  *   - "Show pricing evidence" — controls the confidence badge + source
- *     label + unavailable-reason annotation on each line.
- *   - "Show debug JSON" — controls one whole-document raw JSON view: the
- *     page-level parsed document. Nothing per-line-item.
+ *     label on each line.
  *
- * Toggle state is intentionally per-render and not persisted. All three
+ * Toggle state is intentionally per-render and not persisted. Both
  * toggles default to OFF so the report reads as a clean invoice by
- * default; users can opt into auditable/debug detail when needed.
+ * default; users can opt into auditable detail when needed.
  *
  * This is a client component because the toggles need local state; the
  * parent `EstimateReport` stays a server component and just passes the
  * already-parsed envelope contents through.
  */
-export function ItemsSection({ lines, parsedDocument }: ItemsSectionProps) {
+export function ItemsSection({ lines }: ItemsSectionProps) {
   const [showSource, setShowSource] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
 
   // Group items by `trade`, preserving order of first appearance.
   const groups = useMemo(() => {
-    const byTrade = new Map<Trade, PricedLine[]>();
+    const byTrade = new Map<Trade, EnrichedLine[]>();
     for (const line of lines) {
       const list = byTrade.get(line.trade);
       if (list) list.push(line);
@@ -84,24 +53,19 @@ export function ItemsSection({ lines, parsedDocument }: ItemsSectionProps) {
     return Array.from(byTrade, ([trade, groupLines]) => {
       let groupSubtotal = 0;
       for (const line of groupLines) {
-        const amount = priceAmount(line);
-        if (amount !== null) groupSubtotal += line.quantity * amount;
+        groupSubtotal += line.quantity * line.rate;
       }
       return { trade, lines: groupLines, groupSubtotal };
     });
   }, [lines]);
 
   let subtotal = 0;
-  let unpriced = 0;
   for (const line of lines) {
-    const amount = priceAmount(line);
-    if (amount !== null) subtotal += line.quantity * amount;
-    else unpriced++;
+    subtotal += line.quantity * line.rate;
   }
 
   const sourceToggleId = useId();
   const evidenceToggleId = useId();
-  const debugToggleId = useId();
 
   return (
     <section>
@@ -136,31 +100,8 @@ export function ItemsSection({ lines, parsedDocument }: ItemsSectionProps) {
             />
             <span>Show Pricing Evidence</span>
           </label>
-          <label
-            htmlFor={debugToggleId}
-            className="flex cursor-pointer items-center gap-2"
-          >
-            <Switch
-              id={debugToggleId}
-              checked={showDebug}
-              onCheckedChange={setShowDebug}
-            />
-            <span>Show Debug JSON</span>
-          </label>
         </div>
       </div>
-      {showDebug ? (
-        <div className="mb-4 space-y-3">
-          <div>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Parsed Document (page-level)
-            </div>
-            <pre className="max-h-64 overflow-auto rounded bg-muted p-3 text-xs">
-              {JSON.stringify(parsedDocument, null, 2)}
-            </pre>
-          </div>
-        </div>
-      ) : null}
       {lines.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No billable items were extracted from this report.
@@ -180,7 +121,7 @@ export function ItemsSection({ lines, parsedDocument }: ItemsSectionProps) {
         </div>
       )}
       <Separator className="my-6" />
-      <Totals subtotal={subtotal} unpriced={unpriced} />
+      <Totals subtotal={subtotal} />
     </section>
   );
 }
@@ -193,7 +134,7 @@ function TradeGroup({
   showEvidence,
 }: {
   trade: Trade;
-  groupLines: PricedLine[];
+  groupLines: EnrichedLine[];
   groupSubtotal: number;
   showSource: boolean;
   showEvidence: boolean;
@@ -231,19 +172,17 @@ function ItemRow({
   showSource,
   showEvidence,
 }: {
-  line: PricedLine;
+  line: EnrichedLine;
   showSource: boolean;
   showEvidence: boolean;
 }) {
-  const unitPrice = priceAmount(line);
-  const lineTotal = formatLineTotal(line.quantity, unitPrice);
-  const isUnpriced = lineTotal === PRICE_UNAVAILABLE;
+  const lineTotal = formatLineTotal(line.quantity, line.rate);
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_90px_110px_130px] items-center border-t px-4 py-3 text-sm">
       <div>
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="font-medium leading-snug">
-            {formatItemTitle(line.scope, line.action, line.costType)}
+            {formatItemTitle(line.scope)}
           </div>
         </div>
         <div className="text-xs text-muted-foreground">
@@ -256,16 +195,10 @@ function ItemRow({
         ) : null}
         {showEvidence ? (
           <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            {line.price.status === 'determined' ? (
-              <>
-                <Badge variant="outline" className="mr-1">
-                  {line.price.value.confidence}
-                </Badge>
-                <span>source: {line.price.value.source}</span>
-              </>
-            ) : (
-              <span>{line.price.reason}</span>
-            )}
+            <Badge variant="outline" className="mr-1">
+              {line.confidence}
+            </Badge>
+            <span>source: {line.source}</span>
           </div>
         ) : null}
       </div>
@@ -280,50 +213,25 @@ function ItemRow({
           {formatUnit(line.unit)}
         </span>
       </div>
-      <div
-        className={
-          isUnpriced
-            ? 'tabular-nums text-right text-muted-foreground'
-            : 'tabular-nums text-right font-semibold'
-        }
-      >
+      <div className="tabular-nums text-right font-semibold">
         {lineTotal}
       </div>
     </div>
   );
 }
 
-function Totals({
-  subtotal,
-  unpriced,
-}: {
-  subtotal: number;
-  unpriced: number;
-}) {
+function Totals({ subtotal }: { subtotal: number }) {
   return (
     <div className="flex justify-end">
       <div className="w-full max-w-xs space-y-2 text-sm tabular-nums">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Subtotal (Priced Lines)</span>
+          <span className="text-muted-foreground">Subtotal</span>
           <span className="font-semibold">{formatCurrency(subtotal)}</span>
         </div>
-        {unpriced > 0 ? (
-          <div className="flex justify-between text-muted-foreground">
-            <span>Unpriced Items</span>
-            <span>{unpriced}</span>
-          </div>
-        ) : null}
         <div className="flex justify-between border-t pt-2 text-base">
           <span className="font-semibold">Estimated Client Total</span>
           <span className="font-semibold">{formatCurrency(subtotal)}</span>
         </div>
-        {unpriced > 0 ? (
-          <p className="pt-1 text-xs text-muted-foreground">
-            {unpriced} Line Item{unpriced === 1 ? '' : 's'} Need
-            {unpriced === 1 ? 's' : ''} a Contractor Quote before the Final
-            Total can be Confirmed.
-          </p>
-        ) : null}
       </div>
     </div>
   );

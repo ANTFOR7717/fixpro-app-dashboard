@@ -1,8 +1,7 @@
-import type { Trade, ExtentUnit } from '@/features/estimate-extraction-pipeline/classification';
+import type { Trade } from '@/features/estimate-extraction-pipeline/classification';
 
 /**
  * Format a whole-USD integer dollar amount as a US currency string.
- * Inputs are integers (the pricer agent and DB schema enforce that).
  * Example: 1250 -> "$1,250.00".
  */
 export function formatCurrency(amount: number): string {
@@ -14,20 +13,8 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-/**
- * Render a per-line total. When the pricer was unable to defend a price
- * (`unitPrice === null`), return the literal sentinel the report uses so
- * the grand-total row can also detect partial coverage by counting
- * sentinels.
- */
-export const PRICE_UNAVAILABLE = 'Price unavailable' as const;
-
-export function formatLineTotal(
-  quantity: number,
-  unitPrice: number | null,
-): string {
-  if (unitPrice === null) return PRICE_UNAVAILABLE;
-  return formatCurrency(quantity * unitPrice);
+export function formatLineTotal(quantity: number, rate: number): string {
+  return formatCurrency(quantity * rate);
 }
 
 /**
@@ -162,41 +149,14 @@ export function formatScope(scope: string): string {
 }
 
 /**
- * Labor-row noun suffix for the two actions that ever produce a
- * material+labor split. Deliberately a NOUN ("Installation"/"Replacement"),
- * not a verb ("Install"/"Replace") — see `formatItemTitle` below for why.
+ * Renderer-side title for a billable line's row. A split pair's Material
+ * and Labor rows share the identical `scope` string; they are
+ * differentiated by the separate MATERIAL/LABOR badge rendered alongside
+ * this title (`items-section.tsx`'s `formatCostType`), not by any
+ * action-dependent suffix here.
  */
-const LABOR_SPLIT_SUFFIX: Partial<Record<string, string>> = {
-  install: 'Installation',
-  replace: 'Replacement',
-};
-
-/**
- * Renderer-side title for a billable line's row, differentiating a split
- * pair's Material and Labor rows without an action-verb prefix.
- *
- * The classification module clones the entire work item — including
- * `scope` — onto both halves of an install/replace split, so both rows
- * would otherwise call `formatScope(scope)` on the identical string: same
- * bold title on both rows, nothing but the small MATERIAL/LABOR badge to
- * tell them apart. Fix is a trailing NOUN qualifier on the labor half only
- * ("Wood Siding Board Replacement" vs "Wood Siding Board") — NOT an
- * action-verb prefix, since a verb prefix was previously tried and
- * dropped for drifting from the report's product-style naming.
- *
- * Labor-only actions (repair, service, evaluate, remove) have no material
- * counterpart to differentiate against, so they get no suffix and render
- * exactly as `formatScope` alone would produce.
- */
-export function formatItemTitle(
-  scope: string,
-  action: string,
-  costType: string,
-): string {
-  const base = formatScope(scope);
-  if (costType !== 'labor') return base;
-  const suffix = LABOR_SPLIT_SUFFIX[action];
-  return suffix ? `${base} ${suffix}` : base;
+export function formatItemTitle(scope: string): string {
+  return formatScope(scope);
 }
 
 export function formatLocation(location: string): string {
@@ -224,19 +184,12 @@ function titleCaseToken(token: string, acronyms: ReadonlySet<string>): string {
 
 /**
  * Display label for a unit chip: the uppercased unit ("EA", "SF", "LF",
- * "CY", "HRS"). v3 lines carry their unit structurally — material lines
- * are ea/lf/sf/cy and labor lines are always hrs, enforced by the
- * classification module's discriminated union, so this function never
+ * "CY", "HRS"). Enriched lines carry their unit structurally — material
+ * lines are ea/lf/sf/cy and labor lines are always hrs, enforced by
+ * `enrichment/schema.ts`'s discriminated union, so this function never
  * decides anything for them.
- *
- * Exhaustively covers the current unit set only. The retired legacy
- * `'sqft'` alias this function used to also render as "SF" was dead code
- * — it only ever appeared in `envelope.ts`'s now-deleted `LEGACY_UNIT`
- * array, never in the current `EXTENT_UNIT` enum — so `unit`'s parameter
- * type tightens from `string` to the real unit union (finding #16/FR-021):
- * every live caller now only ever passes one of those.
  */
-export function formatUnit(unit: ExtentUnit | 'hrs'): string {
+export function formatUnit(unit: 'ea' | 'lf' | 'sf' | 'cy' | 'hrs'): string {
   switch (unit) {
     case 'ea':
       return 'EA';
