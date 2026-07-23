@@ -5,7 +5,9 @@
  */
 export {
   extractedFindingSchema,
+  FINDING_STATUS,
   type ExtractedFinding,
+  type FindingStatus,
 } from './schema';
 export { extractionFanoutWorkflow } from './steps';
 /** Re-exported for Mastra-instance registration ONLY — no module calls these directly. */

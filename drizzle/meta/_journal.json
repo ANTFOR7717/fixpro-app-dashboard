@@ -50,6 +50,13 @@
       "when": 1783786053360,
       "tag": "0006_enable_pgvector",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784817268549,
+      "tag": "0007_nifty_inertia",
+      "breakpoints": true
     }
   ]
 }

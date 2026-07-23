@@ -1,8 +1,13 @@
 import { Mastra } from '@mastra/core/mastra';
+import { MastraCompositeStore } from '@mastra/core/storage';
 import { PinoLogger } from '@mastra/loggers';
+import { LibSQLStore } from '@mastra/libsql';
+import { DuckDBStore } from '@mastra/duckdb';
+import { Observability, MastraStorageExporter } from '@mastra/observability';
 import { findingExtractorAgent } from './extraction';
-import { materialsAgent, laborAgent, tradeAgent } from './classification';
-import { enrichmentAgent } from './enrichment';
+import { classifyFindingsBatchAgent } from './classification';
+import { enrichmentAgent, presentationAgent } from './enrichment';
+import { identityAgent } from './intake';
 import { summarizeEstimateWorkflow } from './pipeline';
 
 /**
@@ -24,11 +29,26 @@ import { summarizeEstimateWorkflow } from './pipeline';
 export const mastra = new Mastra({
   agents: {
     'finding-extractor': findingExtractorAgent,
-    'classification-materials': materialsAgent,
-    'classification-labor': laborAgent,
-    'classification-trade': tradeAgent,
+    'classification-batch': classifyFindingsBatchAgent,
     'enrichment': enrichmentAgent,
+    'presentation': presentationAgent,
+    'estimate-identity-extractor': identityAgent,
   },
-  workflows: { 'summarize-estimate': summarizeEstimateWorkflow },
+  workflows: {
+    'summarize-estimate': summarizeEstimateWorkflow,
+  },
   logger: new PinoLogger({ name: 'estimate-extraction-pipeline' }),
+  storage: new MastraCompositeStore({
+    id: 'composite-storage',
+    default: new LibSQLStore({ id: 'mastra-storage', url: 'file:./mastra.db' }),
+    domains: { observability: await new DuckDBStore().getStore('observability') },
+  }),
+  observability: new Observability({
+    configs: {
+      default: {
+        serviceName: 'estimate-extraction-pipeline',
+        exporters: [new MastraStorageExporter()],
+      },
+    },
+  }),
 });

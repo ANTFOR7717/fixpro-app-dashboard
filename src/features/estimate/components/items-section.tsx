@@ -190,7 +190,7 @@ function ItemRow({
         </div>
         {showSource ? (
           <div className="mt-1 text-sm italic text-muted-foreground">
-            “{line.sourceQuote}”
+            “{line.descriptionQuote}”
           </div>
         ) : null}
         {showEvidence ? (

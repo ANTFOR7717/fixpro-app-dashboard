@@ -2,12 +2,23 @@ import { z } from 'zod';
 
 /**
  * Trades a residential home-inspection finding can plausibly implicate.
- * Sourced from the Tennessee Board for Licensing Contractors'
- * "Classification Outline with Trade Exam Requirements" (Rev. 5/2019),
- * scoped to the residential-repair-relevant subset and cross-referenced
- * against Maryland's/Virginia's separate licensing-board structures —
- * see specs/003-classification-rebuild/spec.md Clarification Q3 for full
- * sourcing and per-value rationale. Closed set, no `other` value.
+ * `trade`'s only consumer is the estimate report's section grouping
+ * (`estimate/components/items-section.tsx`, `estimate/lib/format.ts`) —
+ * a display label, not a licensing/dispatch classification. The
+ * taxonomy is scoped to trades a homeowner would actually shop for a
+ * dedicated specialist to do, even for a small repair (`electrical`,
+ * `plumbing`, `hvac`, `fire_protection`, `roofing`, `foundation`,
+ * `excavation_grading`, `landscaping`, `fencing`, `mold_remediation`,
+ * `pest_control`). Routine repair scope a general contractor handles
+ * directly or subs out without the homeowner shopping for a specialist
+ * — masonry, carpentry, drywall, painting, flooring, tile, insulation,
+ * siding, glazing, waterproofing, concrete — is not split out; it
+ * reports as `general_contractor`. Closed set, no `other` value.
+ *
+ * (This replaces a prior 23-value, licensing-board-derived taxonomy
+ * whose "read directly from the published PDF" sourcing claim could not
+ * be substantiated anywhere in the repo — see
+ * specs/003-classification-rebuild/spec.md Clarification Q3, now stale.)
  */
 export const TRADE = [
   'electrical',
@@ -15,17 +26,6 @@ export const TRADE = [
   'hvac',
   'fire_protection',
   'roofing',
-  'siding',
-  'carpentry',
-  'drywall',
-  'flooring',
-  'glazing',
-  'masonry',
-  'painting',
-  'insulation',
-  'concrete',
-  'waterproofing',
-  'tile',
   'foundation',
   'excavation_grading',
   'landscaping',
@@ -45,10 +45,9 @@ export type Trade = (typeof TRADE)[number];
 const itemIdentitySchema = z.object({
   id: z.string(),
   trade: z.enum(TRADE),
-  action: z.string().min(1),
   scope: z.string().min(1),
   location: z.string().min(1),
-  sourceQuote: z.string().min(1),
+  descriptionQuote: z.string().min(1),
   page: z.number().int().min(1),
 });
 

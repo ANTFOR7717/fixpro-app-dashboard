@@ -48,19 +48,12 @@ export function formatPartyRole(role: string): string {
 
 /**
  * Display label for a `BillableItem.trade`. The schema's `TRADE` enum is
- * lowercase short codes ("hvac", "siding", ...); invoices and estimates
- * print these as capitalized category labels ("HVAC", "Siding"). The
+ * lowercase short codes ("hvac", "fencing", ...); invoices and estimates
+ * print these as capitalized category labels ("HVAC", "Fencing"). The
  * report uses this as the small eyebrow above each line title.
  *
- * Exhaustively covers the current 23-value taxonomy (classification's
- * rebuilt `TRADE`, specs/003-classification-rebuild) only. The retired
- * 11-value taxonomy's special-cased labels this function used to also
- * carry (`structural`, `appliance`, `exterior`, `interior`, `other`) were
- * dead code — those values could only ever have reached this function
- * from v1/v2-persisted rows, and v1/v2 support is deleted entirely
- * (specs/007-pipeline-schema-cleanup finding #17) — so `trade`'s
- * parameter type tightens from `string` to the real `Trade` union
- * (finding #15/FR-020): every live caller now only ever passes one.
+ * Exhaustively covers the current 12-value taxonomy (classification's
+ * `TRADE`, `classification/schema.ts`) only.
  */
 export function formatTradeLabel(trade: Trade): string {
   switch (trade) {
@@ -74,28 +67,6 @@ export function formatTradeLabel(trade: Trade): string {
       return 'Fire Protection';
     case 'roofing':
       return 'Roofing';
-    case 'siding':
-      return 'Siding';
-    case 'carpentry':
-      return 'Carpentry';
-    case 'drywall':
-      return 'Drywall';
-    case 'flooring':
-      return 'Flooring';
-    case 'glazing':
-      return 'Glazing';
-    case 'masonry':
-      return 'Masonry';
-    case 'painting':
-      return 'Painting';
-    case 'insulation':
-      return 'Insulation';
-    case 'concrete':
-      return 'Concrete';
-    case 'waterproofing':
-      return 'Waterproofing';
-    case 'tile':
-      return 'Tile';
     case 'foundation':
       return 'Foundation';
     case 'excavation_grading':

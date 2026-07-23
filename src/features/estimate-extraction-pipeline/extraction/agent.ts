@@ -5,10 +5,18 @@ import { pioneerGateway } from '../shared/gateway';
  * The agent has exactly one job: read ONE PAGE of an inspection report
  * and emit every grounded FINDING the inspector explicitly identifies on
  * THAT page, so classification can turn each one into a properly-typed
- * billable line. It does not assign a trade, a unit, or a material/labor
- * split — those require domain-taxonomy judgment classification owns,
- * not text extraction. It does not summarize, advise, prioritize, price,
- * or estimate hours.
+ * billable line. It does not assign a trade or a unit — those still
+ * require domain-taxonomy judgment classification owns — but it does
+ * name the material/labor itself directly (`scope`). It does not
+ * summarize, prioritize, price, or estimate hours.
+ *
+ * Field-level guidance (what each field means, what to do when the
+ * report doesn't state something explicitly) lives on the schema itself
+ * via `.describe()` (`extraction/schema.ts`) — verified this session
+ * that Mastra passes those descriptions through in the JSON Schema given
+ * to the model's structured-output call, so they don't need to be
+ * restated here. This instructions string only carries the general task
+ * framing and rules that apply across every field.
  *
  * Called once per page, concurrently, by `extraction/steps.ts`'s
  * `extractionFanoutWorkflow` (`.foreach()` over every page) — not once
@@ -18,38 +26,22 @@ import { pioneerGateway } from '../shared/gateway';
  * `createStep(agent, { structuredOutput })` in steps.ts.
  */
 export const findingExtractorAgent = new Agent({
-  id: 'finding-extractor',
-  name: 'Inspection Finding Extractor',
+  id: 'Finding Extractor',
+  name: 'Inspection Agent',
   instructions: `
-You read ONE PAGE of a home inspection report (called again per page)
-and emit every BILLABLE FINDING it supports: a repair, replacement,
-install, removal, service, or specialist evaluation the inspector
-explicitly recommends or calls defective. Descriptions and commentary
-with no called-for action are NOT findings.
+You read ONE PAGE of a home inspection report and emit every FINDING:
+real contractor work with identifiable material and/or labor. No
+material or labor stated = not a finding (a referral like "call the
+water company" is not one).
 
 RULES
-1. GROUNDED ONLY. sourceQuote must be verbatim, name the defect and
-   action itself, never invented, paraphrased, or merged from separate
-   sentences.
-2. ONE FINDING PER DISTINCT FIX ("replace X AND re-secure Y" = two).
-   "Or"-worded material uncertainty ("trim or siding") = ONE finding —
-   material ID is classification's job.
-3. NO prose, advice, severity, price, trade, unit, or material/labor
-   split.
-4. WHEN UNSURE (descriptive, not actionable), OMIT.
-
-FIELDS PER FINDING
-- id: locally-unique this call ("finding-1") — reassigned globally
-  after.
-- action: the report's own verb if stated, else the most accurate verb
-  it supports.
-- scope: a specific noun phrase, never a bare trade word — "loose
-  siding panel", not "siding". Too vague: omit.
-- location: verbatim location language ("Kitchen", "Roof — north
-  slope").
-- sourceQuote: the exact verbatim defect+action sentence or clause.
-- page: the page number at the top of this prompt, same for every
-  finding this call.
+1. GROUND every field in what the report actually says where it says
+   something — never invent facts the report doesn't support. Only
+   derive semantically (per each field's own description) when the
+   report is genuinely silent on that specific point.
+2. Undetermined material ("trim or siding") is still ONE finding.
+3. NO prose, advice, severity, or price. Trade and unit are still
+   classification's job, not this agent's.
 
 Return JSON matching the schema exactly. "findings" may be empty. No
 text outside the JSON.

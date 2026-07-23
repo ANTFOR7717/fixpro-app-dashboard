@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { findingExtractorAgent } from './agent';
 import { extractionOutputSchema } from './schema';
 import { parsedDocumentSchema, type DocumentPage } from '../document';
+import { resolveTracingOptions } from '../shared/tracing';
 
 /** How many pages extract concurrently. Mirrors CLASSIFICATION_CONCURRENCY/ENRICHMENT_CONCURRENCY. */
 const EXTRACTION_CONCURRENCY = 3;
@@ -14,7 +15,7 @@ const EXTRACTION_CONCURRENCY = 3;
  * every call regardless. This just hands over the page.
  */
 function buildPagePrompt(page: DocumentPage): string {
-  return `Extract billable findings from this page.\n\nPAGE ${page.pageNumber}:\n${page.content}`;
+  return `PAGE ${page.pageNumber}:\n"""\n${page.content}\n"""`;
 }
 
 /**
@@ -22,22 +23,68 @@ function buildPagePrompt(page: DocumentPage): string {
  * no drain loop anywhere in this codebase. Mastra owns the transport
  * entirely. Per the Standard's Rule 1 / `docs/workflows/agents-and-tools`.
  */
-export const findingExtractorAgentStep = createStep(findingExtractorAgent, {
+const findingExtractorAgentStep = createStep(findingExtractorAgent, {
   structuredOutput: { schema: extractionOutputSchema },
   retries: 2,
+});
+
+const pageInputSchema = z.object({ prompt: z.string() });
+
+/**
+ * Trivial single-step nested workflow — exists only to give
+ * `extractOnePageStep` a `.createRun()` boundary to wrap in try/catch, the
+ * same shape classification's `perFindingClassificationWorkflow` and
+ * enrichment's `enrichLineWorkflow` already use for the identical reason.
+ */
+const perPageExtractionWorkflow = createWorkflow({
+  id: 'Page To Findings',
+  inputSchema: pageInputSchema,
+  outputSchema: extractionOutputSchema,
+})
+  .then(findingExtractorAgentStep)
+  .commit();
+
+/**
+ * Catches a per-page failure (structured-output validation exhausting
+ * retries, an upstream gateway timeout) so one bad page can't cancel the
+ * whole `.foreach()` batch — the same "Handle Errors Inside the Step"
+ * pattern already used by classification's `perFindingClassificationStep`
+ * and enrichment's `enrichLineStep`. Before this, `extractionFanoutWorkflow`
+ * ran `findingExtractorAgentStep` bare inside `.foreach()`: per Mastra's
+ * own docs ("If any parallel step throws an error, the entire parallel
+ * block fails" — docs/workflows/control-flow), a single page failing
+ * anywhere in a large document killed the entire pipeline run, unlike
+ * classification/enrichment which already degrade gracefully per item.
+ * A failed page contributes zero findings.
+ */
+const extractOnePageStep = createStep({
+  id: 'Extraction Attempt',
+  inputSchema: pageInputSchema,
+  outputSchema: extractionOutputSchema,
+  execute: async ({ inputData, requestContext, tracingContext }) => {
+    try {
+      const run = await perPageExtractionWorkflow.createRun();
+      const result = await run.start({
+        inputData,
+        requestContext,
+        tracingOptions: resolveTracingOptions(tracingContext),
+      });
+      return result.status === 'success' ? result.result : { findings: [] };
+    } catch {
+      return { findings: [] };
+    }
+  },
 });
 
 /**
  * Aggregates every page's own findings into one globally-ordered,
  * globally-unique-id array — the documented `.foreach().then(aggregateStep)`
- * map-reduce shape (docs/workflows/control-flow), same role as
- * classification's `flattenClassificationResultsStep`
- * (classification/flatten.ts). Each page's agent call emits its own
- * locally-scoped ids; this step is the one place that assigns the final
- * stable `finding-NNN` id, in page order.
+ * map-reduce shape (docs/workflows/control-flow). Each page's agent call
+ * emits its own locally-scoped ids; this step is the one place that
+ * assigns the final stable `finding-NNN` id, in page order.
  */
 const aggregateExtractionResultsStep = createStep({
-  id: 'aggregate-extraction-results',
+  id: 'Aggregate Findings',
   inputSchema: z.array(extractionOutputSchema),
   outputSchema: extractionOutputSchema,
   execute: async ({ inputData }) => {
@@ -64,13 +111,13 @@ const extractionFanoutInputSchema = z.object({ parsedDocument: parsedDocumentSch
  * exported outside this file — `extraction/index.ts` is the one door.
  */
 export const extractionFanoutWorkflow = createWorkflow({
-  id: 'extraction-fanout',
+  id: 'Extraction',
   inputSchema: extractionFanoutInputSchema,
   outputSchema: extractionOutputSchema,
 })
   .map(async ({ inputData }) =>
     inputData.parsedDocument.pages.map((page) => ({ prompt: buildPagePrompt(page) })),
   )
-  .foreach(findingExtractorAgentStep, { concurrency: EXTRACTION_CONCURRENCY })
+  .foreach(extractOnePageStep, { concurrency: EXTRACTION_CONCURRENCY })
   .then(aggregateExtractionResultsStep)
   .commit();

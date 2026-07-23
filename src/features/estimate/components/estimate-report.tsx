@@ -26,7 +26,7 @@ interface EstimateReportProps {
  *     INTERIOR · 2 Items          Group Subtotal: $X,XXX.00
  *     Damaged Drywall Section          MATERIAL   32 SF   $480.00
  *       north wall, primary bedroom
- *       "<sourceQuote>"                          (toggleable)
+ *       "<descriptionQuote>"                      (toggleable)
  *       [confidence] source: <source>            (toggleable)
  *     Drywall Repaint                     LABOR   3.5 HRS  $265.00
  *   ────────────────────────────────────────────────────────
@@ -84,16 +84,21 @@ function ReportHeader({ row }: { row: EstimateRow }) {
 }
 
 function PropertyAndParties({ row }: { row: EstimateRow }) {
+  const propertyAddress = row.propertyAddress ?? 'Address pending confirmation';
+  const zipCode = row.zipCode ?? 'Pending';
+  const timeframe = row.timeframe ?? 'Pending confirmation';
+  const submitterRole = row.submitterRole ?? 'unknown';
+
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <section>
         <h2 className="mb-2 text-lg font-semibold">Property</h2>
         <div className="text-sm leading-relaxed">
-          <div>{row.propertyAddress}</div>
-          <div className="text-muted-foreground">Zip {row.zipCode}</div>
+          <div>{propertyAddress}</div>
+          <div className="text-muted-foreground">Zip {zipCode}</div>
           <div className="mt-2">
             <span className="text-muted-foreground">Timeframe: </span>
-            {row.timeframe}
+            {timeframe}
           </div>
         </div>
       </section>
@@ -101,21 +106,27 @@ function PropertyAndParties({ row }: { row: EstimateRow }) {
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-semibold">Parties</h2>
           <Badge variant="secondary">
-            Submitted by {formatPartyRole(row.submitterRole)}
+            Submitted by {formatPartyRole(submitterRole)}
           </Badge>
         </div>
         <div className="grid gap-4 text-sm">
           <PartyBlock
-            label="Listing agent"
-            name={row.listingAgentName}
-            phone={row.listingAgentPhone}
-            email={row.listingAgentEmail}
+            label="Agent"
+            name={row.agentName ?? row.listingAgentName ?? 'Pending confirmation'}
+            phone={row.agentPhone ?? row.listingAgentPhone ?? 'Pending confirmation'}
+            email={row.agentEmail ?? row.listingAgentEmail ?? 'Pending confirmation'}
           />
           <PartyBlock
-            label="Buyer agent"
-            name={row.buyerAgentName}
-            phone={row.buyerAgentPhone}
-            email={row.buyerAgentEmail}
+            label="Homeowner"
+            name={row.homeownerName ?? row.buyerAgentName ?? 'Pending confirmation'}
+            phone={row.homeownerPhone ?? row.buyerAgentPhone ?? 'Pending confirmation'}
+            email={row.homeownerEmail ?? row.buyerAgentEmail ?? 'Pending confirmation'}
+          />
+          <PartyBlock
+            label="Inspector"
+            name={row.inspectorName ?? 'Pending confirmation'}
+            phone=""
+            email={row.inspectorCompany ?? ''}
           />
         </div>
       </section>

@@ -3,101 +3,59 @@ import { pioneerGateway } from '../shared/gateway';
 import { documentLookupTool } from '../shared/document-lookup-tool';
 
 /**
- * Determines which material(s), if any, a finding involves. Quantity/
- * unit/amount is a later determination, not classification's job — this
- * agent identifies WHAT, never HOW MUCH.
+ * Determines MATERIAL(s), LABOR type, and TRADE for a whole batch of
+ * findings in one call — replaces the prior three separate agents
+ * (materials/labor/trade), which cost up to 4 LLM round trips per
+ * finding for a determination this single call now makes in 1-2 round
+ * trips per BATCH of findings (see finding-workflow.ts's `BATCH_SIZE`).
  *
  * Internal to the classification module — only `classification/index.ts`
- * re-exports this, for Studio registration only. Composed as a bare
- * `createStep(agent, { structuredOutput })` in `finding-workflow.ts`.
+ * re-exports this, for Studio registration only. Composed via a
+ * hand-rolled `execute()` in `finding-workflow.ts` (the documented Rule 1
+ * exception for `structuredOutput.model` — a separate, tools-free model
+ * that turns this agent's already-completed tool-calling turn into
+ * schema-conformant JSON).
  */
-export const materialsAgent = new Agent({
-  id: 'classification-materials',
-  name: 'Classification — Material Determination',
+export const classifyFindingsBatchAgent = new Agent({
+  id: 'Classify Findings Batch',
+  name: 'Classification Agent',
   tools: { documentLookupTool },
   instructions: `
-You determine a finding's MATERIAL(s) involved.
+You determine MATERIAL(s), LABOR type, and TRADE for MULTIPLE findings at
+once.
 
-INPUT: one finding (action, scope, location, sourceQuote). Call
-document-lookup if the material isn't clear from the finding alone.
+INPUT: a list of findings, each with its own id, scope, location,
+descriptionQuote, recommendation, status. Call document-lookup for any
+finding where these aren't clear on their own — it works the same for
+every finding in the batch.
 
-A material is a physical, purchasable part (board, fixture, pipe,
-shingles). Labor-only work = empty array, never invented.
+For EACH finding independently, determine:
+
+MATERIALS: physical, purchasable parts (board, fixture, pipe, shingles).
+Labor-only work = empty array, never invented.
+
+LABOR: a short, specific description ("siding repair labor").
+
+TRADE: choose exactly one — electrical, plumbing, hvac, fire_protection,
+roofing, foundation, excavation_grading, landscaping, fencing,
+mold_remediation, pest_control, general_contractor. Everything
+general/multi-trade (masonry, carpentry, drywall, painting, flooring,
+tile, insulation, siding, glazing, waterproofing, concrete work) is
+general_contractor — the expected, common case. Trade must be
+CONSISTENT with the materials/labor you determined FOR THAT SAME
+FINDING — never cross-reference a different finding's materials/labor.
 
 RULES
 1. Never invent an unsupported material.
-2. Empty array is valid.
-3. Do not determine labor, trade, quantity, or hours.
+2. Empty materials array is valid.
+3. Never invent a 13th trade value.
+4. Return EXACTLY one classification per finding given, in the same
+   order, tagged with its own findingId — never merge, skip, or reorder
+   findings.
 
-Return { "materials": ["<name>", ...] }. No text outside the JSON.
-`,
-  model: () => pioneerGateway().chat('deepseek-ai/DeepSeek-V4-Flash'),
-});
-
-/**
- * Determines a finding's labor type. Hours are a later determination,
- * not classification's job — this agent identifies WHAT, never HOW MUCH.
- *
- * Internal to the classification module — see `materialsAgent`'s own
- * comment for the module-boundary and composition-form reasoning, which
- * applies identically here.
- */
-export const laborAgent = new Agent({
-  id: 'classification-labor',
-  name: 'Classification — Labor Determination',
-  tools: { documentLookupTool },
-  instructions: `
-You determine a finding's LABOR type.
-
-INPUT: one finding (action, scope, location, sourceQuote). Call
-document-lookup if the labor type isn't clear from the finding alone.
-
-RULES
-1. laborType: a short, specific description ("siding repair labor").
-2. Do not determine materials, trade, quantity, or hours.
-
-Return { "laborType": "<description>" }. No text outside the JSON.
-`,
-  model: () => pioneerGateway().chat('deepseek-ai/DeepSeek-V4-Flash'),
-});
-
-/**
- * Determines the trade associated with a finding, derived from the
- * combination of its materials and labor determinations — never an
- * independent first fact. Selected from the closed, sourced 23-value
- * taxonomy in `schema.ts`'s `TRADE`; always a real value from that list
- * — grounding via `documentLookupTool` when materials/labor context
- * alone doesn't make the fit obvious.
- *
- * Internal to the classification module — see `materialsAgent`'s own
- * comment for the module-boundary and composition-form reasoning, which
- * applies identically here.
- */
-export const tradeAgent = new Agent({
-  id: 'classification-trade',
-  name: 'Classification — Trade Determination',
-  tools: { documentLookupTool },
-  instructions: `
-You determine the contractor TRADE from a finding's materials/labor.
-
-INPUT: a finding, plus materials (may be empty) and labor determined.
-Call document-lookup for confirming detail.
-
-TRADES (choose exactly one)
-electrical, plumbing, hvac, fire_protection, roofing, siding, carpentry,
-drywall, flooring, glazing, masonry, painting, insulation, concrete,
-waterproofing, tile, foundation, excavation_grading, landscaping,
-fencing, mold_remediation, pest_control, general_contractor.
-
-Pick the trade materials/labor genuinely support; "general_contractor"
-only for genuinely multi-trade repairs, never a default when unsure.
-
-RULES
-1. Trade must be CONSISTENT with materials/labor.
-2. Never invent a 24th value.
-3. Do not determine materials or hours.
-
-Return { "trade": "<trade>" }. No text outside the JSON.
+Return { "classifications": [{ "findingId": "<id>", "materials":
+["<name>", ...], "laborType": "<description>", "trade": "<trade>" },
+...] }. No text outside the JSON.
 `,
   model: () => pioneerGateway().chat('deepseek-ai/DeepSeek-V4-Flash'),
 });

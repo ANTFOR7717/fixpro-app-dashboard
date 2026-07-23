@@ -1,24 +1,39 @@
 import { createStep, createWorkflow } from '@mastra/core/workflows';
-import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
-import { extractedFindingSchema, extractionFanoutWorkflow } from './extraction';
+import { extractionFanoutWorkflow } from './extraction';
 import { classificationFanoutWorkflow } from './classification';
 import { enrichmentFanoutWorkflow } from './enrichment';
 import { parsePdfFromUrl, parsedDocumentSchema } from './document';
+import {
+  collectTimeframeStep,
+  confirmIdentityStep,
+  estimateIntakeOutputSchema,
+  identityExtractionStep,
+  identityPromptStep,
+} from './intake';
 
 /**
- * The composition root. `extractionFanoutWorkflow` is composed directly
- * as a step, via Mastra's own documented "workflows as steps" pattern
- * (`docs/workflows/overview`: a `Workflow` implements `Step`, so it can
- * be passed straight to `.then()`). `classificationFanoutWorkflow` and
- * `enrichmentFanoutWorkflow` are each instead wrapped by this file's own
- * step (`classificationStep`/`enrichmentStep`), which gives each an
- * explicit `.createRun()` boundary so `RequestContext` can be set once
- * per pass, from `parsedDocument` — both classification's and
- * enrichment's agents read it on demand via `documentLookupTool`. All
- * three stages fan out their own agent calls internally via `.foreach()`
- * — see `extraction/steps.ts`, `classification/workflow.ts`,
- * `enrichment/workflow.ts`.
+ * The composition root. All three stages — `extractionFanoutWorkflow`,
+ * `classificationFanoutWorkflow`, `enrichmentFanoutWorkflow` — are
+ * composed directly as steps, via Mastra's own documented "workflows as
+ * steps" pattern (`docs/workflows/overview`: a `Workflow` implements
+ * `Step`, so it can be passed straight to `.then()`). This is what makes
+ * each stage's own internal step graph show up as a nested, expandable
+ * graph in Studio — a workflow only wrapped inside a hand-rolled step's
+ * `execute()` is invisible to Studio's static graph view, since it only
+ * exists inside a function body at runtime, never in the declared step
+ * chain.
+ *
+ * Classification's and enrichment's own agents (via `documentLookupTool`)
+ * need `parsedDocument` on `RequestContext`. Rather than each stage
+ * opening its own `.createRun()` boundary to inject a fresh
+ * `RequestContext` (which would hide that stage's own workflow from
+ * Studio's graph), `mapToExtractionInputStep` sets it once, directly on
+ * the ambient `RequestContext` Mastra already threads through every step
+ * of this run (`docs/server/request-context.md`: `.set()` in one step is
+ * visible via `.get()` in any later step of the same run) — so every
+ * later step, including nested workflow-as-step compositions, sees it
+ * with no wrapper required.
  *
  * No module hand-rolls `.generate()`/`.stream()` anywhere in its own
  * internals: every agent call in extraction, classification, and
@@ -29,9 +44,9 @@ import { parsePdfFromUrl, parsedDocumentSchema } from './document';
  * `extractionFanoutWorkflow`. Classification and enrichment never
  * receive it as typed data — no finding, no line, no workflow input
  * anywhere in either module carries `parsedDocument`. Both CAN reach
- * their own agents on demand, via `documentLookupTool`, reading it off a
- * `RequestContext` this file's own wrapping steps set once per pass —
- * never injected into a prompt, never duplicated per item.
+ * their own agents on demand, via `documentLookupTool`, reading it off
+ * the shared `RequestContext` — never injected into a prompt, never
+ * duplicated per item.
  */
 
 /**
@@ -48,7 +63,7 @@ const summarizeEstimateInputSchema = z.object({
 });
 
 const parseDocumentStep = createStep({
-  id: 'parse-document',
+  id: 'Document Parse',
   inputSchema: summarizeEstimateInputSchema,
   outputSchema: z.object({ parsedDocument: parsedDocumentSchema }),
   retries: 2,
@@ -58,71 +73,54 @@ const parseDocumentStep = createStep({
 });
 
 /**
- * Gives classification its own explicit `.createRun()` boundary so
- * `RequestContext` can be set ONCE for the whole classification pass,
- * here, from `parsedDocument` (fetched via `getStepResult(parseDocumentStep)`,
- * not carried in this step's own typed `inputSchema`). Mastra threads that
- * one `RequestContext` to every nested step/agent/tool inside this run
- * automatically (docs/server/request-context.md) — including every
- * per-finding nested workflow `.foreach()` fans out
- * (`classification/finding-workflow.ts` explicitly forwards it one level
- * further in). `documentLookupTool` (classification/agents.ts) reads
- * `parsedDocument` back off it, on demand, only when an agent actually
- * calls the tool — never injected into any prompt directly.
+ * Named handoff step between `parseDocumentStep` and
+ * `extractionFanoutWorkflow` — both already declare the identical
+ * `{ parsedDocument }` shape, so the schema side is a pass-through, not
+ * a reshape. Also sets `parsedDocument` on the run's shared
+ * `RequestContext`, once, here — this is what lets classification's and
+ * enrichment's `documentLookupTool` reach it later in the SAME run
+ * without either stage needing its own `.createRun()` boundary. Named
+ * instead of a bare `.map()` so it shows up as its own step in Mastra
+ * Studio's trace/graph instead of a generic, unnamed "Map Config" node.
  */
-const classificationStep = createStep({
-  id: 'classification',
-  inputSchema: z.object({ findings: z.array(extractedFindingSchema) }),
-  outputSchema: classificationFanoutWorkflow.outputSchema,
-  execute: async ({ inputData, getStepResult }) => {
-    const { parsedDocument } = getStepResult(parseDocumentStep);
-    const requestContext = new RequestContext();
-    requestContext.set('parsedDocument', parsedDocument);
-    const run = await classificationFanoutWorkflow.createRun();
-    const result = await run.start({ inputData, requestContext });
-    if (result.status === 'success') {
-      return result.result;
-    }
-    const errorMessage = 'error' in result ? result.error.message : `workflow ended with status: ${result.status}`;
-    throw new Error(`classification-fanout run did not succeed: ${errorMessage}`);
+const mapToExtractionInputStep = createStep({
+  id: 'map-to-extraction-input',
+  inputSchema: parseDocumentStep.outputSchema,
+  outputSchema: z.object({ parsedDocument: parsedDocumentSchema }),
+  execute: async ({ inputData, requestContext }) => {
+    requestContext.set('parsedDocument', inputData.parsedDocument);
+    return { parsedDocument: inputData.parsedDocument };
   },
 });
 
-/**
- * Same reasoning as `classificationStep` — enrichment's own agent also
- * has `documentLookupTool`, so it needs the same explicit
- * `RequestContext`-setting `.createRun()` boundary.
- */
-const enrichmentStep = createStep({
-  id: 'enrichment',
-  inputSchema: classificationFanoutWorkflow.outputSchema,
-  outputSchema: enrichmentFanoutWorkflow.outputSchema,
-  execute: async ({ inputData, getStepResult }) => {
-    const { parsedDocument } = getStepResult(parseDocumentStep);
-    const requestContext = new RequestContext();
-    requestContext.set('parsedDocument', parsedDocument);
-    const run = await enrichmentFanoutWorkflow.createRun();
-    const result = await run.start({ inputData, requestContext });
-    if (result.status === 'success') {
-      return result.result;
-    }
-    const errorMessage = 'error' in result ? result.error.message : `workflow ended with status: ${result.status}`;
-    throw new Error(`enrichment-fanout run did not succeed: ${errorMessage}`);
+const restoreDocumentContextStep = createStep({
+  id: 'Restore Parsed Document Context',
+  inputSchema: estimateIntakeOutputSchema,
+  outputSchema: z.object({ parsedDocument: parsedDocumentSchema }),
+  execute: async ({ getStepResult, requestContext }) => {
+    const parsed = getStepResult(parseDocumentStep);
+    requestContext.set('parsedDocument', parsed.parsedDocument);
+    return parsed;
   },
 });
 
 export const summarizeEstimateWorkflow = createWorkflow({
-  id: 'summarize-estimate',
+  id: 'Generate Estimate',
   inputSchema: summarizeEstimateInputSchema,
-  outputSchema: enrichmentStep.outputSchema,
+  outputSchema: enrichmentFanoutWorkflow.outputSchema,
 })
   .then(parseDocumentStep)
   // Fan out extraction across every page concurrently — one agent call
   // per page (extraction/steps.ts's `extractionFanoutWorkflow`), not one
   // giant whole-document prompt. This is the ONLY step in the pipeline
   // that receives the parsed document.
-  .map(async ({ inputData }) => ({ parsedDocument: inputData.parsedDocument }))
+  .then(mapToExtractionInputStep)
+  .then(identityPromptStep)
+  .then(identityExtractionStep)
+  .then(confirmIdentityStep)
+  .then(collectTimeframeStep)
+  .then(restoreDocumentContextStep)
   .then(extractionFanoutWorkflow)
-  .then(classificationStep)
-  .then(enrichmentStep)
+  .then(classificationFanoutWorkflow)
+  .then(enrichmentFanoutWorkflow)
   .commit();

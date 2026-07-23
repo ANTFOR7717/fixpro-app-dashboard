@@ -7,5 +7,6 @@
  */
 export { enrichedLineSchema, lineTotal, type EnrichedLine } from './schema';
 export { enrichmentFanoutWorkflow } from './workflow';
-/** Re-exported for Studio registration ONLY — no module calls this directly. */
+/** Re-exported for Studio registration ONLY — no module calls these directly. */
 export { enrichmentAgent } from './agent';
+export { presentationAgent } from './presentation-agent';

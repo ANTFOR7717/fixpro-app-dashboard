@@ -18,5 +18,5 @@ export {
   type Trade,
 } from './schema';
 export { classificationFanoutWorkflow } from './workflow';
-/** Re-exported for Studio registration ONLY — no module calls these directly. */
-export { materialsAgent, laborAgent, tradeAgent } from './agents';
+/** Re-exported for Studio registration ONLY — no module calls this directly. */
+export { classifyFindingsBatchAgent } from './agents';

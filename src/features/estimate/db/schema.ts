@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 import { user } from "@/db/schema";
 
 /**
@@ -13,6 +13,7 @@ import { user } from "@/db/schema";
 export const ESTIMATE_STATUSES = [
   'uploaded',
   'processing',
+  'awaiting_confirmation',
   'completed',
   'failed',
 ] as const;
@@ -28,17 +29,32 @@ export const estimateRequestTable = pgTable("estimate_requests", {
   status: varchar("status", { length: 50 }).$type<EstimateStatus>().default("uploaded").notNull(),
   summary: text("summary"),
   errorMessage: text("error_message"),
+  workflowRunId: text("workflow_run_id"),
+  intakeExtraction: jsonb("intake_extraction"),
+  intakeConfirmedAt: timestamp("intake_confirmed_at"),
+
+  // Confirmed identity fields for the upload-first flow. The legacy
+  // listing/buyer fields below remain for existing records and consumers.
+  agentName: varchar("agent_name", { length: 255 }),
+  agentPhone: varchar("agent_phone", { length: 50 }),
+  agentEmail: varchar("agent_email", { length: 255 }),
+  homeownerName: varchar("homeowner_name", { length: 255 }),
+  homeownerPhone: varchar("homeowner_phone", { length: 50 }),
+  homeownerEmail: varchar("homeowner_email", { length: 255 }),
+  inspectorName: varchar("inspector_name", { length: 255 }),
+  inspectorCompany: varchar("inspector_company", { length: 255 }),
+
   // Metadata
-  submitterRole: varchar("submitter_role", { length: 50 }).notNull(), // 'agent' | 'homeowner'
-  listingAgentName: varchar("listing_agent_name", { length: 255 }).notNull(),
-  listingAgentPhone: varchar("listing_agent_phone", { length: 50 }).notNull(),
-  listingAgentEmail: varchar("listing_agent_email", { length: 255 }).notNull(),
-  buyerAgentName: varchar("buyer_agent_name", { length: 255 }).notNull(),
-  buyerAgentPhone: varchar("buyer_agent_phone", { length: 50 }).notNull(),
-  buyerAgentEmail: varchar("buyer_agent_email", { length: 255 }).notNull(),
-  propertyAddress: text("property_address").notNull(),
-  zipCode: varchar("zip_code", { length: 20 }).notNull(),
-  timeframe: text("timeframe").notNull(),
+  submitterRole: varchar("submitter_role", { length: 50 }), // 'agent' | 'homeowner'
+  listingAgentName: varchar("listing_agent_name", { length: 255 }),
+  listingAgentPhone: varchar("listing_agent_phone", { length: 50 }),
+  listingAgentEmail: varchar("listing_agent_email", { length: 255 }),
+  buyerAgentName: varchar("buyer_agent_name", { length: 255 }),
+  buyerAgentPhone: varchar("buyer_agent_phone", { length: 50 }),
+  buyerAgentEmail: varchar("buyer_agent_email", { length: 255 }),
+  propertyAddress: text("property_address"),
+  zipCode: varchar("zip_code", { length: 20 }),
+  timeframe: text("timeframe"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
