@@ -4,12 +4,11 @@
  * `.generate()`/`.stream()` by hand anywhere.
  */
 export {
-  ACTION,
   extractedFindingSchema,
-  type Action,
+  FINDING_STATUS,
   type ExtractedFinding,
+  type FindingStatus,
 } from './schema';
-export { buildExtractionPrompt, findingExtractorAgentStep } from './steps';
+export { extractionFanoutWorkflow } from './steps';
 /** Re-exported for Mastra-instance registration ONLY — no module calls these directly. */
 export { findingExtractorAgent } from './agent';
-export { extractionConsistencyScorer } from './scorer';

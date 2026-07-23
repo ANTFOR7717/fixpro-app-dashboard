@@ -2,8 +2,7 @@ import { z } from 'zod';
 
 /**
  * One physical page of the source PDF, extracted as plain text. 1-indexed
- * to match how pageHint ("p. 14") and pdf-parse's own page numbering both
- * count pages.
+ * to match pdf-parse's own page numbering.
  */
 export const documentPageSchema = z.object({
   pageNumber: z.number().int().min(1),

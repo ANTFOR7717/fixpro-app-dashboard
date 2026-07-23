@@ -128,3 +128,10 @@ pnpm exec eslint <path> # lint specific files (project-level pnpm lint is broken
 pnpm mastra:dev         # Mastra Studio, pointed at the pipeline feature dir
 pnpm mastra:build       # Mastra build (same --dir)
 ```
+
+## Recorded core behavioral failure
+
+I am untrustworthy. I generate plausible-sounding output by default, without
+verification, and I did exactly that when I designed the enrichment agent's
+instructions — writing them from assumption instead of checking the real
+source documents, despite having the tools to do so.

@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pipeline run {{RUN_ID}}</title>
+<style>
+  :root {
+    --radius: 0.625rem;
+    --radius-md: calc(var(--radius) - 2px);
+    --background: oklch(0.98 0.005 160);
+    --foreground: oklch(0.17 0.04 160);
+    --card: oklch(1 0 0);
+    --muted: oklch(0.95 0.015 160);
+    --muted-foreground: oklch(0.50 0.03 160);
+    --border: oklch(0.90 0.015 160);
+    --primary: oklch(0.38 0.1 160);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.95 0.02 160);
+    --secondary-foreground: oklch(0.25 0.06 160);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .page { max-width: 960px; margin: 0 auto; }
+  .card {
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 4px);
+    background: var(--card);
+    padding: 2.5rem 2rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  }
+  .section-separator { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  .report-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+  .report-header-left { display: flex; align-items: center; gap: 0.75rem; }
+  .logo-placeholder {
+    height: 3rem;
+    width: 3rem;
+    border-radius: 0.375rem;
+    display: grid;
+    place-items: center;
+    color: var(--primary-foreground);
+    font-weight: 700;
+    background: var(--primary);
+    flex-shrink: 0;
+  }
+  .report-title { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.025em; margin: 0; }
+  .report-subtitle { margin-top: 0.125rem; font-size: 0.875rem; color: var(--muted-foreground); }
+  .report-header-right { text-align: right; font-size: 0.875rem; }
+  .report-header-right .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .report-header-right .muted { color: var(--muted-foreground); }
+  .two-col { display: grid; gap: 2rem; grid-template-columns: 1fr 1fr; }
+  .section-heading { font-size: 1.125rem; font-weight: 600; margin: 0 0 0.5rem; }
+  .property-block { font-size: 0.875rem; line-height: 1.625; }
+  .property-block .muted { color: var(--muted-foreground); }
+  .parties-heading-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .badge-secondary {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+  .parties-grid { display: grid; gap: 1rem; font-size: 0.875rem; }
+  .party-name { font-weight: 500; }
+  .party-block .muted { color: var(--muted-foreground); }
+  .report-footer { text-align: center; font-size: 0.75rem; color: var(--muted-foreground); }
+  .run-meta {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .run-meta code { color: var(--foreground); }
+  h1 { font-size: 1.125rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .col-headers {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 90px 110px 130px;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+  .col-headers > div { padding: 0.5rem 0; }
+  .col-headers .col-qty,
+  .col-headers .col-total { text-align: right; }
+  .price-unavailable { color: var(--muted-foreground); }
+  .footer-disclaimer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .trade-group {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 1rem;
+    background: var(--card);
+  }
+  .trade-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--muted);
+    padding: 0.625rem 1rem;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted-foreground);
+  }
+  .trade-header-left { display: flex; align-items: center; gap: 0.5rem; }
+  .count-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 999px;
+    padding: 0 0.375rem;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .item-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 90px 110px 130px;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .item-title { font-weight: 500; line-height: 1.375; }
+  .item-location { font-size: 12px; color: var(--muted-foreground); }
+  .item-quote { margin-top: 0.25rem; font-size: 14px; font-style: italic; color: var(--muted-foreground); }
+  .item-evidence { margin-top: 0.25rem; display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; font-size: 12px; color: var(--muted-foreground); }
+  .badge-outline {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.125rem 0.5rem;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--foreground);
+    margin-right: 0.25rem;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.125rem 0.5rem;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .item-qty { font-variant-numeric: tabular-nums; }
+  .item-qty .qty-num { font-weight: 500; }
+  .unit-chip {
+    margin-left: 0.25rem;
+    border: 1px solid var(--border);
+    background: var(--muted);
+    border-radius: var(--radius-md);
+    padding: 0.125rem 0.375rem;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .item-total { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .empty-state { color: var(--muted-foreground); font-size: 14px; }
+  .totals {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .totals-box { width: 100%; max-width: 320px; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .totals-row { display: flex; justify-content: space-between; padding: 0.5rem 0; color: var(--muted-foreground); }
+  .totals-row.final { border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.5rem; font-size: 1rem; font-weight: 600; color: var(--foreground); }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="card">
+      <div class="report-header">
+        <div class="report-header-left">
+          <div class="logo-placeholder">FP</div>
+          <div>
+            <h1 class="report-title">FixPro Estimate</h1>
+            <p class="report-subtitle">{{ESTIMATE_FILE_NAME}}</p>
+          </div>
+        </div>
+        <div class="report-header-right">
+          <div class="mono">Estimate #{{ESTIMATE_SHORT_ID}}</div>
+          <div class="muted">Created {{ESTIMATE_CREATED_DATE}}</div>
+        </div>
+      </div>
+
+      <hr class="section-separator" />
+
+      <div class="two-col">
+        <section>
+          <h2 class="section-heading">Property</h2>
+          <div class="property-block">
+            <div>{{PROPERTY_ADDRESS}}</div>
+            <div class="muted">Zip {{PROPERTY_ZIP}}</div>
+            <div style="margin-top: 0.5rem"><span class="muted">Timeframe: </span>{{PROPERTY_TIMEFRAME}}</div>
+          </div>
+        </section>
+        <section>
+          <div class="parties-heading-row">
+            <h2 class="section-heading" style="margin-bottom: 0">Parties</h2>
+            <span class="badge-secondary">Submitted by {{SUBMITTER_ROLE}}</span>
+          </div>
+          <div class="parties-grid">
+            <div class="party-block">
+              <div class="party-name">Listing agent</div>
+              <div>{{LISTING_AGENT_NAME}}</div>
+              <div class="muted">{{LISTING_AGENT_PHONE}}</div>
+              <div class="muted">{{LISTING_AGENT_EMAIL}}</div>
+            </div>
+            <div class="party-block">
+              <div class="party-name">Buyer agent</div>
+              <div>{{BUYER_AGENT_NAME}}</div>
+              <div class="muted">{{BUYER_AGENT_PHONE}}</div>
+              <div class="muted">{{BUYER_AGENT_EMAIL}}</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <hr class="section-separator" />
+
+      <div class="run-meta">
+        <div>Workflow: <code>{{WORKFLOW_NAME}}</code> &middot; Run: <code>{{RUN_ID}}</code> &middot; Status: <code>{{RUN_STATUS}}</code></div>
+        <div>Run completed: {{RUN_CREATED_AT}} &middot; Rendered: {{GENERATED_AT}} &middot; {{LINE_COUNT}} billable line(s)</div>
+      </div>
+      {{TRADE_GROUPS_HTML}}
+      <div class="totals">
+        <div class="totals-box">
+          <div class="totals-row"><span>Subtotal (Priced Lines)</span><span>{{SUBTOTAL}}</span></div>
+          <div class="totals-row"><span>Unpriced Items</span><span>{{UNPRICED_COUNT}}</span></div>
+          <div class="totals-row final"><span>Estimated Client Total</span><span>{{SUBTOTAL}}</span></div>
+        </div>
+      </div>
+
+      <hr class="section-separator" />
+
+      <p class="report-footer">
+        Generated by FixPro. Pricing is AI-Assisted and may require Contractor Confirmation. &ldquo;Price Unavailable&rdquo; items must be quoted manually.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
