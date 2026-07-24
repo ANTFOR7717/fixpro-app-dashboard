@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FileSearch } from "lucide-react";
 
-import type { IntakeIdentity } from "@/features/estimate-extraction-pipeline/intake";
+import type { IntakeIdentity } from "@/features/estimate-extraction-pipeline/intake/schema";
 import type { EstimateStatus } from "../db/schema";
 import { EstimateConfirmationView } from "./estimate-confirmation-view";
 import { EstimateRetryButton } from "./estimate-retry-button";

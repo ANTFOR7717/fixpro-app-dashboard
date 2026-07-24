@@ -10,15 +10,10 @@ import { db } from "@/db";
 import { estimateRequestTable } from "../db/schema";
 import { parseUploadInput } from "../lib/upload-input";
 import {
-  persistConfirmedIdentity,
-  resumeSummarizeEstimate,
-  triggerSummarizeEstimate,
-} from "../lib/workflow";
-import {
   intakeIdentitySchema,
   intakeTimeframeSchema,
   type IntakeIdentity,
-} from "@/features/estimate-extraction-pipeline/intake";
+} from "@/features/estimate-extraction-pipeline/intake/schema";
 
 type ActionResult = {
   success: boolean;
@@ -54,6 +49,7 @@ export async function uploadEstimatePdfAction(
       })
       .returning({ id: estimateRequestTable.id });
 
+    const { triggerSummarizeEstimate } = await import("../lib/workflow");
     triggerSummarizeEstimate({
       estimateRequestId: inserted.id,
       fileUrl: blobUrl,
@@ -118,6 +114,7 @@ export async function retryEstimateAction(
       })
       .where(eq(estimateRequestTable.id, id));
 
+    const { triggerSummarizeEstimate } = await import("../lib/workflow");
     triggerSummarizeEstimate({
       estimateRequestId: row.id,
       fileUrl: row.fileUrl,
@@ -173,6 +170,7 @@ export async function confirmEstimateIdentityAction(
       return { success: false, error: "Estimate is not awaiting identity confirmation." };
     }
 
+    const { persistConfirmedIdentity, resumeSummarizeEstimate } = await import("../lib/workflow");
     await persistConfirmedIdentity({
       estimateRequestId,
       userId: session.user.id,
@@ -267,6 +265,7 @@ export async function selectEstimateTimeframeAction(
       return { success: false, error: "Timeframe selection is already processing." };
     }
 
+    const { resumeSummarizeEstimate } = await import("../lib/workflow");
     resumeSummarizeEstimate({
       estimateRequestId,
       userId: session.user.id,

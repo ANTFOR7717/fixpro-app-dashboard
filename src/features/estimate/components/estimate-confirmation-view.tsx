@@ -8,7 +8,7 @@ import {
   confirmEstimateIdentityAction,
   selectEstimateTimeframeAction,
 } from "../api/actions";
-import type { IntakeIdentity } from "@/features/estimate-extraction-pipeline/intake";
+import type { IntakeIdentity } from "@/features/estimate-extraction-pipeline/intake/schema";
 import { Button } from "@/design-systems/shadcn/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/design-systems/shadcn/components/card";
 import { Input } from "@/design-systems/shadcn/components/input";
