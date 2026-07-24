@@ -3,7 +3,7 @@ import { estimateRequestTable } from "@/features/estimate/db/schema";
 import { eq } from "drizzle-orm";
 import { authServerProvider } from "@/auth/server-provider";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/design-systems/shadcn/components/button";
@@ -17,6 +17,10 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
 
   const [row] = await db.select().from(estimateRequestTable).where(eq(estimateRequestTable.id, id));
   if (!row || row.userId !== session.user.id) return notFound();
+
+  if (row.status !== "completed") {
+    redirect(`/dashboard/estimate/${id}/intake`);
+  }
 
   const envelope = parseSummaryEnvelope(row.summary);
 

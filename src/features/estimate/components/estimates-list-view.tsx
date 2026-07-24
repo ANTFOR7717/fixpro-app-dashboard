@@ -44,7 +44,7 @@ export async function EstimatesListView() {
             Upload your first inspection report to begin generating accurate repair estimates.
           </p>
           <Button asChild>
-            <Link href="/dashboard/estimate">Upload PDF</Link>
+          <Link href="/dashboard/estimate/intake">Upload PDF</Link>
           </Button>
         </div>
       ) : (
@@ -74,9 +74,11 @@ export async function EstimatesListView() {
 
                 return (
                   <div key={upload.id} className="flex items-center justify-between p-4">
-                    {upload.status === "completed" ? (
+                    {upload.status !== "failed" ? (
                       <Link
-                        href={`/dashboard/estimate/${upload.id}`}
+                        href={upload.status === "completed"
+                          ? `/dashboard/estimate/${upload.id}`
+                          : `/dashboard/estimate/${upload.id}/intake`}
                         className="flex-1 min-w-0 hover:opacity-80 transition-opacity"
                       >
                         {leftBlock}
@@ -88,6 +90,8 @@ export async function EstimatesListView() {
                     <div className="flex items-center gap-3 shrink-0 pl-4">
                       <EstimateStatusBar
                         status={upload.status}
+                        identityConfirmed={Boolean(upload.intakeConfirmedAt)}
+                        timeframeSelected={Boolean(upload.timeframe)}
                         errorMessage={upload.errorMessage}
                       />
                       {upload.status === "failed" && (

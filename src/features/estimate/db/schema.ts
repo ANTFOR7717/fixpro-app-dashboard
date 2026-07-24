@@ -6,6 +6,9 @@ import { user } from "@/db/schema";
  *
  *   - uploaded    : PDF received and stored, workflow not yet started
  *   - processing  : AI pipeline is running
+ *   - awaiting_confirmation : identity or timeframe input is required; the
+ *                              persisted confirmation/timeframe fields identify
+ *                              which checkpoint is active
  *   - completed   : pipeline finished successfully; the billable-extraction
  *                   envelope has been written to `summary`
  *   - failed      : pipeline did not finish; `errorMessage` carries the reason

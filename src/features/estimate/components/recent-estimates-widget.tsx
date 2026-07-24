@@ -37,7 +37,7 @@ export async function RecentEstimatesWidget() {
         </p>
         <div className="flex items-center gap-2">
           <Button asChild>
-            <Link href="/dashboard/estimate">Upload PDF</Link>
+          <Link href="/dashboard/estimate/intake">Upload PDF</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/dashboard/estimates">View all estimates</Link>
@@ -71,6 +71,8 @@ export async function RecentEstimatesWidget() {
               <div className="flex items-center gap-3 shrink-0 pl-4">
                 <EstimateStatusBar
                   status={upload.status}
+                  identityConfirmed={Boolean(upload.intakeConfirmedAt)}
+                  timeframeSelected={Boolean(upload.timeframe)}
                   errorMessage={upload.errorMessage}
                 />
                 {upload.status === "failed" && (
@@ -80,11 +82,15 @@ export async function RecentEstimatesWidget() {
             </>
           );
 
-          if (upload.status === "completed") {
+          if (upload.status !== "failed") {
+            const href = upload.status === "completed"
+              ? `/dashboard/estimate/${upload.id}`
+              : `/dashboard/estimate/${upload.id}/intake`;
+
             return (
               <Link
                 key={upload.id}
-                href={`/dashboard/estimate/${upload.id}`}
+                href={href}
                 className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
               >
                 {content}

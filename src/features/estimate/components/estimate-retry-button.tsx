@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/design-systems/shadcn/components/button";
@@ -11,6 +12,7 @@ interface EstimateRetryButtonProps {
 }
 
 export function EstimateRetryButton({ id }: EstimateRetryButtonProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const handleRetry = () => {
@@ -18,8 +20,12 @@ export function EstimateRetryButton({ id }: EstimateRetryButtonProps) {
       const formData = new FormData();
       formData.append("id", id);
       const result = await retryEstimateAction(null, formData);
-      if (result.success) toast.success(result.message ?? "Retry started.");
-      else toast.error(result.error ?? "Failed to retry.");
+      if (result.success) {
+        toast.success(result.message ?? "Retry started.");
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Failed to retry.");
+      }
     });
   };
 

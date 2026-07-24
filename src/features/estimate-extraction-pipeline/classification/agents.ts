@@ -57,5 +57,5 @@ Return { "classifications": [{ "findingId": "<id>", "materials":
 ["<name>", ...], "laborType": "<description>", "trade": "<trade>" },
 ...] }. No text outside the JSON.
 `,
-  model: () => pioneerGateway().chat('deepseek-ai/DeepSeek-V4-Flash'),
+  model: () => pioneerGateway().chat('gpt-5.5'),
 });

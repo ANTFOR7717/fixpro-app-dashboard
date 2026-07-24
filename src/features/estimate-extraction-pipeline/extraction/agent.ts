@@ -46,7 +46,7 @@ RULES
 Return JSON matching the schema exactly. "findings" may be empty. No
 text outside the JSON.
 `,
-  model: () => pioneerGateway().chat('deepseek-ai/DeepSeek-V4-Flash'),
+  model: () => pioneerGateway().chat('gpt-5.5'),
   // Was passed as a per-call `modelSettings` option to `.stream()`.
   // `createStep(agent, { structuredOutput })` (see steps.ts) has no
   // documented way to pass modelSettings at the call site — this is the

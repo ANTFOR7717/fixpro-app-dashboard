@@ -14,7 +14,7 @@ export const estimateMetadata: FeatureMetadata = {
     },
   ],
   quickActions: [
-    { href: "/dashboard/estimate", label: "Upload Inspection Report", icon: ClipboardList },
+    { href: "/dashboard/estimate/intake", label: "Upload Inspection Report", icon: ClipboardList },
     { href: "/dashboard/estimates", label: "View All Estimates", icon: FileText },
   ],
   widgets: [

@@ -76,5 +76,5 @@ invented as a compound instead of the one real bucket.
 Return { "items": [{ "id": "<id>", "itemName": "<name>", "category":
 "<category>" }, ...] }. No text outside the JSON.
 `,
-  model: () => pioneerGateway().chat('pioneer/auto'),
+  model: () => pioneerGateway().chat('gpt-5.5'),
 });
