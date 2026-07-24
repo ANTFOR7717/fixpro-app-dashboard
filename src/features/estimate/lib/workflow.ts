@@ -16,9 +16,9 @@ import {
 } from "@/features/estimate-extraction-pipeline/intake";
 import {
   SUMMARY_ENVELOPE_KIND,
-  SUMMARY_ENVELOPE_VERSION_3,
-  summaryEnvelopeV3Schema,
-  type SummaryEnvelopeV3,
+  SUMMARY_ENVELOPE_VERSION_4,
+  summaryEnvelopeV4Schema,
+  type SummaryEnvelopeV4,
 } from "@/features/estimate/lib/envelope";
 import { estimateRequestTable } from "../db/schema";
 import { classifyError } from "./classify-error";
@@ -51,7 +51,7 @@ type ResumeSummarizeEstimateParams =
 
 type WorkflowResult = {
   status: string;
-  result?: { lines?: SummaryEnvelopeV3["lines"] };
+  result?: { lines?: SummaryEnvelopeV4["lines"] };
   steps?: Record<string, { status?: string; error?: unknown }>;
 };
 
@@ -178,13 +178,13 @@ async function persistWorkflowSuccess(
     return;
   }
 
-  const envelope: SummaryEnvelopeV3 = {
+  const envelope: SummaryEnvelopeV4 = {
     kind: SUMMARY_ENVELOPE_KIND,
-    version: SUMMARY_ENVELOPE_VERSION_3,
+    version: SUMMARY_ENVELOPE_VERSION_4,
     lines,
   };
 
-  if (summaryEnvelopeV3Schema.safeParse(envelope).success) {
+  if (summaryEnvelopeV4Schema.safeParse(envelope).success) {
     await db
       .update(estimateRequestTable)
       .set({
@@ -226,7 +226,7 @@ async function markWorkflowFailed(
  * ever reads the source document — see `pipeline.ts`) or its run fails —
  * and this function owns the entire persistence lifecycle:
  *
- *   processing → run the pipeline once → completed (v3 envelope)
+ *   processing → run the pipeline once → completed (v4 envelope)
  *                                      | failed   (classified message)
  *
  * Nothing else writes this row during a run.

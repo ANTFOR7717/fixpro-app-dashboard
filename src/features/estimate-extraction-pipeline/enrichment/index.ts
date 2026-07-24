@@ -5,8 +5,12 @@
  * by its own `RequestContext`-setting step so `documentLookupTool` can
  * reach `parsedDocument`.
  */
-export { enrichedLineSchema, lineTotal, type EnrichedLine } from './schema';
+export {
+  enrichedLineSchema,
+  type EnrichedLine,
+  enrichedMaterialLineSchema,
+  enrichedLaborLineSchema,
+} from './schema';
 export { enrichmentFanoutWorkflow } from './workflow';
-/** Re-exported for Studio registration ONLY — no module calls these directly. */
+/** Re-exported for Studio registration ONLY — no module calls this directly. */
 export { enrichmentAgent } from './agent';
-export { presentationAgent } from './presentation-agent';
