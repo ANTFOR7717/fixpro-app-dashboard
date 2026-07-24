@@ -20,24 +20,18 @@ importers:
       '@mastra/core':
         specifier: ^1.51.0
         version: 1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1)
-      '@mastra/duckdb':
-        specifier: ^1.5.1
-        version: 1.5.1(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))
-      '@mastra/libsql':
-        specifier: ^1.16.0
-        version: 1.16.0(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))
       '@mastra/loggers':
         specifier: ^1.2.0
         version: 1.2.0(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))
-      '@mastra/observability':
-        specifier: ^1.16.1
-        version: 1.16.1(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))(zod@4.2.1)
       '@mastra/perplexity':
         specifier: ^0.2.0
         version: 0.2.0(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))(zod@4.2.1)
       '@mastra/tavily':
         specifier: ^1.1.0
         version: 1.1.0(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))(zod@4.2.1)
+      '@napi-rs/canvas':
+        specifier: 0.1.80
+        version: 0.1.80
       '@radix-ui/react-alert-dialog':
         specifier: ^1.1.14
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -144,6 +138,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3
         version: 3.3.6
+      '@mastra/libsql':
+        specifier: 1.16.0
+        version: 1.16.0(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))
       '@types/node':
         specifier: ^20
         version: 20.19.27
@@ -507,56 +504,6 @@ packages:
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
-
-  '@duckdb/node-api@1.5.2-r.2':
-    resolution: {integrity: sha512-IqFeTarPL9sImt8R6Y/NbNjTR95c7fksk9uFCpFLV0hxbIzbNCCF//xy2BgBqVJtU7/gk2eIpTJTvtE6FS2eog==}
-
-  '@duckdb/node-bindings-darwin-arm64@1.5.2-r.2':
-    resolution: {integrity: sha512-wA50u8kQxEXlf2ho1m/n8K4qdIWNNBUZ8xQ02x+9Vc12GAgabSlnXJOaZZFrby5Dj28y+mFBIfAEGftBeQKXaw==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@duckdb/node-bindings-darwin-x64@1.5.2-r.2':
-    resolution: {integrity: sha512-UJHIhxkHMpdzTnyXVqsGOZotG+TzwAqkX0POM20IkQVtWtFjPS52Kc9Q+qLrS8ZuabmnrFtX9AnlHNyPVqSqMA==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@duckdb/node-bindings-linux-arm64-musl@1.5.2-r.2':
-    resolution: {integrity: sha512-PVC9feqV+bgsnzGfiCv1pe+9mNqoC8k15/3Qmwhp6+AUloTNtk1ln9wlsHMUzhRfNG2wb2fN8P9PJ5zY5t/J/w==}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@duckdb/node-bindings-linux-arm64@1.5.2-r.2':
-    resolution: {integrity: sha512-cAEALsSxYRzSfUgxAJCNbDZcmdlVQWvEKldd7r8lYWYZ7D2mxBjeLrF0WoL34vl+ZNEgqHAuqiv3I+wMU2dOXA==}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@duckdb/node-bindings-linux-x64-musl@1.5.2-r.2':
-    resolution: {integrity: sha512-v2AUKCIHKq9+zFWmx+UdSWyxFLaT5wsWuTNID30pGBqGvwChxLGmm1szbHNxR7nNa00y2SGp9Gxoky0RS7YCwg==}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  '@duckdb/node-bindings-linux-x64@1.5.2-r.2':
-    resolution: {integrity: sha512-9SgKECgVtkDK6+HLBbDKxW41ORj+BciQjSgERFfhnuPIDYhgx08wTPZcnaU7KxvNdOmndIn5OmjzKZ6Jrvwv0g==}
-    cpu: [x64]
-    os: [linux]
-    libc: [glibc]
-
-  '@duckdb/node-bindings-win32-arm64@1.5.2-r.2':
-    resolution: {integrity: sha512-g5ZWK07c0Qh7UFhJC37iC5y8oW8ZqxEgpNM2vTFD3ShM9Rn1NDXkxA7zjcheHRI+My5T1JpE9kNpCvhzItJrgw==}
-    cpu: [arm64]
-    os: [win32]
-
-  '@duckdb/node-bindings-win32-x64@1.5.2-r.2':
-    resolution: {integrity: sha512-VUMbdeXQHWKHEXVWtfVaOSu7Mb4jR9gT56Yzu9FHyLyP9ogY/D6wpeohY5gAHZS9PHQGGq24qRtCn5g6vUolqA==}
-    cpu: [x64]
-    os: [win32]
-
-  '@duckdb/node-bindings@1.5.2-r.2':
-    resolution: {integrity: sha512-A17A6pXB7SEBAm93POdmEG+f4vQWMSujUP8/hNUfDWjaqp4C5mUWFnyuBM4XiB4qyXXH3vbjis2TYsnxAN2xEQ==}
 
   '@emnapi/core@1.7.1':
     resolution: {integrity: sha512-o1uhUASyo921r2XtHYOHy7gdkGLge8ghBEQHMWmyJFoXlpU58kIrhhN3w26lpQb6dspetweapMn2CSNwQ8I4wg==}
@@ -1362,12 +1309,6 @@ packages:
     peerDependencies:
       '@mastra/core': '>=1.50.0-0 <2.0.0-0'
 
-  '@mastra/duckdb@1.5.1':
-    resolution: {integrity: sha512-wDMGnGHG4ADqVwHRuPHhkqdHz7JnrucHHx26iz4uAuy7oh1UFkFDhxvJZlA74b4wq0L/rAAi16uCH8OBS6zYSg==}
-    engines: {node: '>=22.13.0'}
-    peerDependencies:
-      '@mastra/core': '>=1.0.0-0 <2.0.0-0'
-
   '@mastra/libsql@1.16.0':
     resolution: {integrity: sha512-Rxnt1wm4XTthsYTQGkj221u2UqJDk/XqJfbtYIF03Cly2d1BoWrF8v4VX6t4SeghHNPsJAwVVG95sK6iw9EZnw==}
     engines: {node: '>=22.13.0'}
@@ -1379,13 +1320,6 @@ packages:
     engines: {node: '>=22.13.0'}
     peerDependencies:
       '@mastra/core': '>=1.0.0-0 <2.0.0-0'
-
-  '@mastra/observability@1.16.1':
-    resolution: {integrity: sha512-Cz737iM3jI2wLd/idx1O5/Sxb8QrGpjrgHZuIWi5MxUJQ0/ptjAzw+yMlGHhwy+3F7LVPzUDL9P/l/EC9pixRg==}
-    engines: {node: '>=22.13.0'}
-    peerDependencies:
-      '@mastra/core': '>=1.16.0-0 <2.0.0-0'
-      zod: ^3.25.0 || ^4.0.0
 
   '@mastra/perplexity@0.2.0':
     resolution: {integrity: sha512-PVHGoPz5y6JjGWjFqKDjCHiYgMXc07MSLyMYwGmHugw9Luuk44f+JpYNYV/IZ9KjR0y7MONsRcSdTUcj4hLyKA==}
@@ -6472,47 +6406,6 @@ snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
 
-  '@duckdb/node-api@1.5.2-r.2':
-    dependencies:
-      '@duckdb/node-bindings': 1.5.2-r.2
-
-  '@duckdb/node-bindings-darwin-arm64@1.5.2-r.2':
-    optional: true
-
-  '@duckdb/node-bindings-darwin-x64@1.5.2-r.2':
-    optional: true
-
-  '@duckdb/node-bindings-linux-arm64-musl@1.5.2-r.2':
-    optional: true
-
-  '@duckdb/node-bindings-linux-arm64@1.5.2-r.2':
-    optional: true
-
-  '@duckdb/node-bindings-linux-x64-musl@1.5.2-r.2':
-    optional: true
-
-  '@duckdb/node-bindings-linux-x64@1.5.2-r.2':
-    optional: true
-
-  '@duckdb/node-bindings-win32-arm64@1.5.2-r.2':
-    optional: true
-
-  '@duckdb/node-bindings-win32-x64@1.5.2-r.2':
-    optional: true
-
-  '@duckdb/node-bindings@1.5.2-r.2':
-    dependencies:
-      detect-libc: 2.1.2
-    optionalDependencies:
-      '@duckdb/node-bindings-darwin-arm64': 1.5.2-r.2
-      '@duckdb/node-bindings-darwin-x64': 1.5.2-r.2
-      '@duckdb/node-bindings-linux-arm64': 1.5.2-r.2
-      '@duckdb/node-bindings-linux-arm64-musl': 1.5.2-r.2
-      '@duckdb/node-bindings-linux-x64': 1.5.2-r.2
-      '@duckdb/node-bindings-linux-x64-musl': 1.5.2-r.2
-      '@duckdb/node-bindings-win32-arm64': 1.5.2-r.2
-      '@duckdb/node-bindings-win32-x64': 1.5.2-r.2
-
   '@emnapi/core@1.7.1':
     dependencies:
       '@emnapi/wasi-threads': 1.1.0
@@ -7129,11 +7022,6 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@mastra/duckdb@1.5.1(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))':
-    dependencies:
-      '@duckdb/node-api': 1.5.2-r.2
-      '@mastra/core': 1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1)
-
   '@mastra/libsql@1.16.0(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))':
     dependencies:
       '@libsql/client': 0.17.4
@@ -7147,11 +7035,6 @@ snapshots:
       '@mastra/core': 1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1)
       pino: 10.3.1
       pino-pretty: 13.1.3
-
-  '@mastra/observability@1.16.1(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))(zod@4.2.1)':
-    dependencies:
-      '@mastra/core': 1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1)
-      zod: 4.2.1
 
   '@mastra/perplexity@0.2.0(@mastra/core@1.51.0(ai@7.0.22(zod@4.2.1))(express@5.2.1)(zod@4.2.1))(zod@4.2.1)':
     dependencies:

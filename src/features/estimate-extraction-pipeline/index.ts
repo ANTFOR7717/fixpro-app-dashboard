@@ -1,8 +1,5 @@
 import { Mastra } from '@mastra/core/mastra';
-import { MastraCompositeStore } from '@mastra/core/storage';
 import { PinoLogger } from '@mastra/loggers';
-import { LibSQLStore } from '@mastra/libsql';
-import { Observability, MastraStorageExporter } from '@mastra/observability';
 import { findingExtractorAgent } from './extraction';
 import { classifyFindingsBatchAgent } from './classification';
 import { enrichmentAgent } from './enrichment';
@@ -38,16 +35,4 @@ export const mastra = new Mastra({
     'summarize-estimate': summarizeEstimateWorkflow,
   },
   logger: new PinoLogger({ name: 'estimate-extraction-pipeline' }),
-  storage: new MastraCompositeStore({
-    id: 'composite-storage',
-    default: new LibSQLStore({ id: 'mastra-storage', url: 'file:./mastra.db' }),
-  }),
-  observability: new Observability({
-    configs: {
-      default: {
-        serviceName: 'estimate-extraction-pipeline',
-        exporters: [new MastraStorageExporter()],
-      },
-    },
-  }),
 });
