@@ -13,4 +13,4 @@ export {
   type IntakeIdentity,
   type IntakeTimeframe,
 } from './schema';
-export { readSuspendedIdentity } from './suspension';
+export { readSuspendedIdentity, readSuspendedTimeframe } from './suspension';

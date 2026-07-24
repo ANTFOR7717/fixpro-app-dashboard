@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { confirmIdentityStep } from './steps';
+import { collectTimeframeStep, confirmIdentityStep } from './steps';
 import { intakeIdentitySchema, type IntakeIdentity } from './schema';
 
 const suspendedWorkflowResultSchema = z.object({
@@ -20,6 +20,20 @@ export function readSuspendedIdentity(result: unknown): IntakeIdentity {
   const stepId = path[0];
 
   if (stepId !== confirmIdentityStep.id) {
+    throw new Error(`Unexpected suspended step: ${stepId}`);
+  }
+
+  return suspendedIdentityPayloadSchema.parse(
+    parsed.steps[stepId].suspendPayload,
+  ).identity;
+}
+
+export function readSuspendedTimeframe(result: unknown): IntakeIdentity {
+  const parsed = suspendedWorkflowResultSchema.parse(result);
+  const [path] = parsed.suspended;
+  const stepId = path[0];
+
+  if (stepId !== collectTimeframeStep.id) {
     throw new Error(`Unexpected suspended step: ${stepId}`);
   }
 

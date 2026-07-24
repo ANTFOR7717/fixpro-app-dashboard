@@ -75,7 +75,7 @@ const presentationAgentStep = createStep({
     const stream = await presentationAgent.stream(buildPresentationPrompt(inputData.lines), {
       structuredOutput: {
         schema: buildPresentationResponseSchema(inputData.lines.map((line) => line.id)),
-        model: pioneerGateway().chat('pioneer/auto'),
+        model: pioneerGateway().chat('gpt-5.5'),
       },
       tracingOptions: resolveTracingOptions(tracingContext),
     });

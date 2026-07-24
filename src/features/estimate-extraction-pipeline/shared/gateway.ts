@@ -5,8 +5,8 @@ import { createOpenAI } from '@ai-sdk/openai';
  * routes through. Confirmed real via web search (an OpenAI-compatible
  * inference gateway) and live-verified this session.
  *
- * `.chat('claude-fable-5')`, NOT the bare call. Live-verified: the bare
- * call (`pioneerGateway().('claude-fable-5')`) defaults to OpenAI's newer
+ * `.chat('gpt-5.5')`, NOT the bare call. Live-verified: the bare
+ * call (`pioneerGateway().('gpt-5.5')`) defaults to OpenAI's newer
  * Responses API (`/v1/responses`), and Pioneer's response there is
  * missing the `id` field that endpoint's strict schema requires (a
  * `ZodError` on every call). `.chat(...)` targets the older Chat

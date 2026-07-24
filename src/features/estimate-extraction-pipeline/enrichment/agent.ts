@@ -39,5 +39,5 @@ Return { "amount": { "quantity": <number>, "unit": "<ea|lf|sf|cy|hrs>" },
 "price": { "rate": <int>, "currency": "USD", "confidence":
 "<high|medium|low>", "source": "<source>" } }. No text outside the JSON.
 `,
-  model: () => pioneerGateway().chat('pioneer/auto'),
+  model: () => pioneerGateway().chat('gpt-5.5'),
 });

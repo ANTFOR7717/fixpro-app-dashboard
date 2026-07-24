@@ -47,5 +47,5 @@ than return null or a different shape.
 Return only data supported by the report and match the schema exactly.
 `,
   tools: { documentLookupTool },
-  model: () => pioneerGateway().chat('deepseek-ai/DeepSeek-V4-Flash'),
+  model: () => pioneerGateway().chat('gpt-5.5'),
 });

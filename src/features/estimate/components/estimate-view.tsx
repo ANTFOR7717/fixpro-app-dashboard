@@ -1,42 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { FileSearch, Loader2 as Spinner, Upload } from "lucide-react";
+
 import { uploadEstimatePdfAction } from "../api/actions";
-import { ContactPicker } from "@/features/contacts/components/contact-picker";
-import type { Contact } from "@/features/contacts/db/schema";
-import { Upload, Loader2 as Spinner } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Input } from "@/design-systems/shadcn/components/input";
-import { Label } from "@/design-systems/shadcn/components/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/design-systems/shadcn/components/select";
 import { Card, CardContent } from "@/design-systems/shadcn/components/card";
 import { Button } from "@/design-systems/shadcn/components/button";
-import { Separator } from "@/design-systems/shadcn/components/separator";
-
-const TIMEFRAME_OPTIONS = [
-  "ASAP (24-48 hours)",
-  "This Week (2-7 days)",
-  "Next week (1-2 weeks)",
-  "No rush (2-4 weeks)"
-] as const;
-
-const estimateSchema = z.object({
-  submitterRole: z.enum(["agent", "homeowner"]),
-  listingAgentName: z.string().min(1, "Listing agent name is required"),
-  listingAgentPhone: z.string().min(1, "Listing agent cell number is required"),
-  listingAgentEmail: z.string().email("Invalid listing agent email"),
-  buyerAgentName: z.string().min(1, "Buyer agent name is required"),
-  buyerAgentPhone: z.string().min(1, "Buyer agent cell number is required"),
-  buyerAgentEmail: z.string().email("Invalid buyer agent email"),
-  propertyAddress: z.string().min(1, "Property address is required"),
-  zipCode: z.string().min(1, "Zip code is required"),
-  timeframe: z.enum(TIMEFRAME_OPTIONS, { message: "Please select a timeframe" }),
-});
 
 function SubmitButton({ pending }: { pending: boolean }) {
   return (
@@ -44,11 +16,11 @@ function SubmitButton({ pending }: { pending: boolean }) {
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className="w-full h-12 text-lg font-semibold"
+      className="h-12 w-full text-lg font-semibold"
     >
       {pending ? (
         <>
-          <Spinner className="h-5 w-5 animate-spin mr-2" />
+          <Spinner className="mr-2 h-5 w-5 animate-spin" />
           Processing...
         </>
       ) : (
@@ -58,44 +30,25 @@ function SubmitButton({ pending }: { pending: boolean }) {
   );
 }
 
-interface EstimateViewProps {
-  contacts: Contact[];
-}
-
-export function EstimateView({ contacts }: EstimateViewProps) {
+export function EstimateView() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submittingRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
-  const [saveListingAsContact, setSaveListingAsContact] = useState(false);
-  const [saveBuyerAsContact, setSaveBuyerAsContact] = useState(false);
-  const { register, setValue, handleSubmit, formState: { errors } } = useForm<z.infer<typeof estimateSchema>>({
-    resolver: zodResolver(estimateSchema),
-    defaultValues: {
-      submitterRole: "agent",
-      listingAgentName: "",
-      listingAgentPhone: "",
-      listingAgentEmail: "",
-      buyerAgentName: "",
-      buyerAgentPhone: "",
-      buyerAgentEmail: "",
-      propertyAddress: "",
-      zipCode: "",
-      timeframe: "ASAP (24-48 hours)",
-    }
-  });
+  const [uploadStatus, setUploadStatus] = useState("Uploading your PDF...");
 
-  const onSubmit = async (data: z.infer<typeof estimateSchema>) => {
-    // Synchronous re-entrancy guard. Even if React batching delays the
-    // state update, the ref blocks the second click immediately.
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (submittingRef.current) return;
+
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
 
     submittingRef.current = true;
     setSubmitting(true);
+    setUploadStatus("Uploading your PDF...");
+    let navigatingToEstimate = false;
 
-    const toastId = toast.loading("Uploading estimate...");
     try {
       let blobUrl: string;
       try {
@@ -107,194 +60,98 @@ export function EstimateView({ contacts }: EstimateViewProps) {
         });
         blobUrl = result.url;
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Upload failed.", { id: toastId });
+        toast.error(error instanceof Error ? error.message : "Upload failed.");
         return;
       }
 
+      setUploadStatus("Upload received. Starting analysis...");
       const formData = new FormData();
       formData.append("blobUrl", blobUrl);
       formData.append("fileName", file.name);
       formData.append("fileSize", String(file.size));
-      for (const [key, value] of Object.entries(data)) {
-        formData.append(key, value);
-      }
-      if (saveListingAsContact) formData.append("saveListingAsContact", "1");
-      if (saveBuyerAsContact) formData.append("saveBuyerAsContact", "1");
 
       const result = await uploadEstimatePdfAction(null, formData);
       if (!result.success) {
-        toast.error(result.error ?? "Failed to upload file.", { id: toastId });
+        toast.error(result.error ?? "Failed to upload file.");
         return;
       }
 
-      toast.success(result.message ?? "Upload complete! Your estimate is processing.", { id: toastId });
-      router.replace("/dashboard");
-      router.refresh();
+      if (!result.estimateRequestId) {
+        toast.error("Upload completed without an estimate ID.");
+        return;
+      }
+
+      navigatingToEstimate = true;
+      router.replace(`/dashboard/estimate/${result.estimateRequestId}/intake`);
     } finally {
       submittingRef.current = false;
-      setSubmitting(false);
+      if (!navigatingToEstimate) setSubmitting(false);
     }
   };
 
+  if (submitting) {
+    return <EstimateUploadLoading status={uploadStatus} />;
+  }
+
   return (
-    <div className="max-w-3xl space-y-6 p-6">
+    <div className="w-full space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">Get Repair Estimate</h1>
-        <p className="text-muted-foreground">Provide information and upload your inspection report (PDF).</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">
+          Get Repair Estimate
+        </h1>
+        <p className="text-muted-foreground">
+          Upload your inspection report and we&apos;ll extract the estimate details.
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={onSubmit} className="space-y-6">
         <Card>
-          <CardContent className="pt-6 space-y-8">
-            <div className="space-y-6">
-              {/* Role Selection */}
-              <div className="space-y-2">
-                <Label>I am the: *</Label>
-                <Select
-                  onValueChange={(v) => setValue("submitterRole", v as "agent" | "homeowner")}
-                  defaultValue="agent"
-                >
-                  <SelectTrigger><SelectValue placeholder="Select your role" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="agent">Real Estate Agent</SelectItem>
-                    <SelectItem value="homeowner">Homeowner</SelectItem>
-                  </SelectContent>
-                </Select>
-                <input type="hidden" {...register("submitterRole")} />
-              </div>
-
-              <Separator />
-
-              {/* Agents Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <Label className="text-lg font-bold">Listing Agent Information</Label>
-                  <ContactPicker
-                    label="Use saved contact"
-                    contacts={contacts}
-                    onSelect={(c) => {
-                      setValue("listingAgentName", c.fullName, { shouldValidate: true });
-                      setValue("listingAgentPhone", c.phone, { shouldValidate: true });
-                      setValue("listingAgentEmail", c.email, { shouldValidate: true });
-                    }}
-                  />
-                  <div className="space-y-2">
-                    <Label htmlFor="listingAgentName">Full Name *</Label>
-                    <Input id="listingAgentName" {...register("listingAgentName")} />
-                    {errors.listingAgentName && <p className="text-xs text-red-500">{errors.listingAgentName.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="listingAgentPhone">Cell Number *</Label>
-                    <Input id="listingAgentPhone" type="tel" {...register("listingAgentPhone")} />
-                    {errors.listingAgentPhone && <p className="text-xs text-red-500">{errors.listingAgentPhone.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="listingAgentEmail">Email *</Label>
-                    <Input id="listingAgentEmail" type="email" {...register("listingAgentEmail")} />
-                    {errors.listingAgentEmail && <p className="text-xs text-red-500">{errors.listingAgentEmail.message}</p>}
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={saveListingAsContact}
-                      onChange={(e) => setSaveListingAsContact(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                    Save listing agent as a contact
-                  </label>
-                </div>
-
-                <div className="space-y-4">
-                  <Label className="text-lg font-bold">Buyer Agent Information</Label>
-                  <ContactPicker
-                    label="Use saved contact"
-                    contacts={contacts}
-                    onSelect={(c) => {
-                      setValue("buyerAgentName", c.fullName, { shouldValidate: true });
-                      setValue("buyerAgentPhone", c.phone, { shouldValidate: true });
-                      setValue("buyerAgentEmail", c.email, { shouldValidate: true });
-                    }}
-                  />
-                  <div className="space-y-2">
-                    <Label htmlFor="buyerAgentName">Full Name *</Label>
-                    <Input id="buyerAgentName" {...register("buyerAgentName")} />
-                    {errors.buyerAgentName && <p className="text-xs text-red-500">{errors.buyerAgentName.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="buyerAgentPhone">Cell Number *</Label>
-                    <Input id="buyerAgentPhone" type="tel" {...register("buyerAgentPhone")} />
-                    {errors.buyerAgentPhone && <p className="text-xs text-red-500">{errors.buyerAgentPhone.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="buyerAgentEmail">Email *</Label>
-                    <Input id="buyerAgentEmail" type="email" {...register("buyerAgentEmail")} />
-                    {errors.buyerAgentEmail && <p className="text-xs text-red-500">{errors.buyerAgentEmail.message}</p>}
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={saveBuyerAsContact}
-                      onChange={(e) => setSaveBuyerAsContact(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                    Save buyer agent as a contact
-                  </label>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Property Details */}
-              <div className="space-y-4">
-                <Label className="text-lg font-bold">Property Details</Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2 space-y-2">
-                    <Label htmlFor="propertyAddress">Property Address *</Label>
-                    <Input id="propertyAddress" {...register("propertyAddress")} />
-                    {errors.propertyAddress && <p className="text-xs text-red-500">{errors.propertyAddress.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="zipCode">Zip code *</Label>
-                    <Input id="zipCode" {...register("zipCode")} />
-                    {errors.zipCode && <p className="text-xs text-red-500">{errors.zipCode.message}</p>}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>What is your time frame for COMPLETING these repairs? *</Label>
-                  <Select
-                    onValueChange={(v) => setValue("timeframe", v as (typeof TIMEFRAME_OPTIONS)[number])}
-                    defaultValue="ASAP (24-48 hours)"
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select timeframe" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ASAP (24-48 hours)">ASAP (24-48 hours)</SelectItem>
-                      <SelectItem value="This Week (2-7 days)">This Week (2-7 days)</SelectItem>
-                      <SelectItem value="Next week (1-2 weeks)">Next week (1-2 weeks)</SelectItem>
-                      <SelectItem value="No rush (2-4 weeks)">No rush (2-4 weeks)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <input type="hidden" {...register("timeframe")} />
-                  {errors.timeframe && <p className="text-xs text-red-500">{errors.timeframe.message}</p>}
-                </div>
-              </div>
+          <CardContent className="space-y-4 pt-6">
+            <div>
+              <h2 className="text-lg font-bold">Inspection report</h2>
+              <p className="text-sm text-muted-foreground">
+                Upload a PDF. We&apos;ll ask you to confirm the extracted details next.
+              </p>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/50 p-8 text-center">
+              <Upload className="mb-2 h-10 w-10 text-muted-foreground" />
+              <input
+                type="file"
+                name="file"
+                ref={fileInputRef}
+                accept="application/pdf,.pdf"
+                className="w-full max-w-xs cursor-pointer file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
+                required
+              />
             </div>
           </CardContent>
         </Card>
 
-        <div className="p-8 border-2 border-dashed border-border rounded-xl bg-muted/50 flex flex-col items-center justify-center text-center">
-          <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-          <input
-            type="file"
-            name="file"
-            ref={fileInputRef}
-            accept="application/pdf"
-            className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 w-full max-w-xs cursor-pointer"
-            required
-          />
-        </div>
-
         <SubmitButton pending={submitting} />
       </form>
+    </div>
+  );
+}
+
+function EstimateUploadLoading({ status }: { status: string }) {
+  return (
+    <div className="flex w-full max-w-3xl items-center justify-center py-10">
+      <Card className="w-full max-w-2xl overflow-hidden">
+        <CardContent className="flex flex-col items-center gap-6 px-6 py-16 text-center">
+          <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl border border-primary/20 bg-primary/5">
+            <FileSearch className="h-11 w-11 text-primary" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Analyzing your PDF</h1>
+            <p className="max-w-md text-sm text-muted-foreground">{status}</p>
+          </div>
+          <div className="flex w-full max-w-sm flex-col gap-2" aria-hidden="true">
+            <div className="h-2 w-full animate-pulse rounded-full bg-primary/20" />
+            <div className="h-2 w-4/5 animate-pulse rounded-full bg-primary/15" />
+            <div className="h-2 w-3/5 animate-pulse rounded-full bg-primary/10" />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -121,7 +121,7 @@ const enrichmentAgentStep = createStep({
     const stream = await enrichmentAgent.stream(buildEnrichmentPrompt(inputData.line, inputData.materialsContext), {
       structuredOutput: {
         schema: z.object({ amount: amountSchema, price: priceSchema }),
-        model: pioneerGateway().chat('pioneer/auto'),
+        model: pioneerGateway().chat('gpt-5.5'),
       },
       tracingOptions: resolveTracingOptions(tracingContext),
     });

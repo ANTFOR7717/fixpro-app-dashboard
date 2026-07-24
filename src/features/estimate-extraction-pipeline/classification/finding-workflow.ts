@@ -97,7 +97,7 @@ const classifyBatchAgentStep = createStep({
       {
         structuredOutput: {
           schema: buildBatchResponseSchema(inputData.findings.map((f) => f.id)),
-          model: pioneerGateway().chat('deepseek-ai/DeepSeek-V4-Flash'),
+          model: pioneerGateway().chat('gpt-5.5'),
         },
         tracingOptions: resolveTracingOptions(tracingContext),
       },

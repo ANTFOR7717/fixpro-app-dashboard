@@ -53,5 +53,5 @@ RULES
 Return { "items": [{ "id": "<id>", "itemName": "<name>", "category":
 "<category>", "tags": ["<tag>", ...] }, ...] }. No text outside the JSON.
 `,
-  model: () => pioneerGateway().chat('pioneer/auto'),
+  model: () => pioneerGateway().chat('gpt-5.5'),
 });

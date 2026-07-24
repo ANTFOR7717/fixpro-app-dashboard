@@ -2,17 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { authServerProvider } from "@/auth/server-provider";
 import { db } from "@/db";
 
 import { estimateRequestTable } from "../db/schema";
-import { saveSelectedContacts } from "../lib/contacts";
 import { parseUploadInput } from "../lib/upload-input";
-import { triggerSummarizeEstimate } from "../lib/workflow";
+import {
+  persistConfirmedIdentity,
+  resumeSummarizeEstimate,
+  triggerSummarizeEstimate,
+} from "../lib/workflow";
+import {
+  intakeIdentitySchema,
+  intakeTimeframeSchema,
+  type IntakeIdentity,
+} from "@/features/estimate-extraction-pipeline/intake";
 
-type ActionResult = { success: boolean; message?: string; error?: string };
+type ActionResult = {
+  success: boolean;
+  message?: string;
+  error?: string;
+  estimateRequestId?: string;
+};
 
 export async function uploadEstimatePdfAction(
   _prev: ActionResult | null,
@@ -28,24 +41,7 @@ export async function uploadEstimatePdfAction(
     if (!parsed.ok) {
       return { success: false, error: parsed.error };
     }
-    const { data, saveListingAsContact, saveBuyerAsContact } = parsed;
-    const { blobUrl, fileName, fileSize, ...metadata } = data;
-
-    await saveSelectedContacts({
-      userId: session.user.id,
-      listing: {
-        fullName: metadata.listingAgentName,
-        phone: metadata.listingAgentPhone,
-        email: metadata.listingAgentEmail,
-      },
-      buyer: {
-        fullName: metadata.buyerAgentName,
-        phone: metadata.buyerAgentPhone,
-        email: metadata.buyerAgentEmail,
-      },
-      saveListing: saveListingAsContact,
-      saveBuyer: saveBuyerAsContact,
-    });
+    const { blobUrl, fileName, fileSize } = parsed.data;
 
     const [inserted] = await db
       .insert(estimateRequestTable)
@@ -55,7 +51,6 @@ export async function uploadEstimatePdfAction(
         fileName,
         fileSize,
         status: "uploaded",
-        ...metadata,
       })
       .returning({ id: estimateRequestTable.id });
 
@@ -65,7 +60,11 @@ export async function uploadEstimatePdfAction(
     });
 
     revalidatePath("/dashboard/estimate");
-    return { success: true, message: "Upload complete! Your estimate is processing." };
+    return {
+      success: true,
+      estimateRequestId: inserted.id,
+      message: "Upload complete! Your estimate is processing.",
+    };
   } catch (error) {
     console.error("Server Action Error (uploadEstimatePdfAction):", error);
     return {
@@ -108,7 +107,15 @@ export async function retryEstimateAction(
 
     await db
       .update(estimateRequestTable)
-      .set({ status: "uploaded", errorMessage: null })
+      .set({
+        status: "uploaded",
+        errorMessage: null,
+        summary: null,
+        workflowRunId: null,
+        intakeExtraction: null,
+        intakeConfirmedAt: null,
+        timeframe: null,
+      })
       .where(eq(estimateRequestTable.id, id));
 
     triggerSummarizeEstimate({
@@ -126,6 +133,162 @@ export async function retryEstimateAction(
       error: error instanceof Error ? error.message : "Failed to retry.",
     };
   }
+}
+
+export async function confirmEstimateIdentityAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const session = await authServerProvider.getSession({ headers: await headers() });
+    if (!session?.user) {
+      return { success: false, error: "UNAUTHORIZED_ACCESS_DENIED" };
+    }
+
+    const estimateRequestId = String(formData.get("estimateRequestId") ?? "");
+    const identity: IntakeIdentity = intakeIdentitySchema.parse({
+      propertyAddress: formData.get("propertyAddress"),
+      zipCode: formData.get("zipCode"),
+      agentName: formData.get("agentName"),
+      homeownerName: formData.get("homeownerName"),
+      inspectorName: formData.get("inspectorName"),
+    });
+
+    const [row] = await db
+      .select({
+        id: estimateRequestTable.id,
+        workflowRunId: estimateRequestTable.workflowRunId,
+      })
+      .from(estimateRequestTable)
+      .where(
+        and(
+          eq(estimateRequestTable.id, estimateRequestId),
+          eq(estimateRequestTable.userId, session.user.id),
+          eq(estimateRequestTable.status, "awaiting_confirmation"),
+          isNull(estimateRequestTable.intakeConfirmedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!row?.workflowRunId) {
+      return { success: false, error: "Estimate is not awaiting identity confirmation." };
+    }
+
+    await persistConfirmedIdentity({
+      estimateRequestId,
+      userId: session.user.id,
+      identity,
+    });
+
+    const [processing] = await db
+      .update(estimateRequestTable)
+      .set({ status: "processing", errorMessage: null })
+      .where(
+        and(
+          eq(estimateRequestTable.id, estimateRequestId),
+          eq(estimateRequestTable.userId, session.user.id),
+          eq(estimateRequestTable.status, "awaiting_confirmation"),
+          isNotNull(estimateRequestTable.intakeConfirmedAt),
+        ),
+      )
+      .returning({ id: estimateRequestTable.id });
+
+    if (!processing) {
+      return { success: false, error: "Identity confirmation is already processing." };
+    }
+
+    resumeSummarizeEstimate({
+      estimateRequestId,
+      userId: session.user.id,
+      workflowRunId: row.workflowRunId,
+      resumeData: { identity },
+    });
+
+    revalidateEstimatePaths(estimateRequestId);
+    return { success: true, message: "Identity confirmed." };
+  } catch (error) {
+    console.error("Server Action Error (confirmEstimateIdentityAction):", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to confirm identity.",
+    };
+  }
+}
+
+export async function selectEstimateTimeframeAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const session = await authServerProvider.getSession({ headers: await headers() });
+    if (!session?.user) {
+      return { success: false, error: "UNAUTHORIZED_ACCESS_DENIED" };
+    }
+
+    const estimateRequestId = String(formData.get("estimateRequestId") ?? "");
+    const timeframe = intakeTimeframeSchema.parse({
+      timeframe: formData.get("timeframe"),
+    });
+
+    const [row] = await db
+      .select({
+        id: estimateRequestTable.id,
+        workflowRunId: estimateRequestTable.workflowRunId,
+      })
+      .from(estimateRequestTable)
+      .where(
+        and(
+          eq(estimateRequestTable.id, estimateRequestId),
+          eq(estimateRequestTable.userId, session.user.id),
+          eq(estimateRequestTable.status, "awaiting_confirmation"),
+          isNotNull(estimateRequestTable.intakeConfirmedAt),
+          isNull(estimateRequestTable.timeframe),
+        ),
+      )
+      .limit(1);
+
+    if (!row?.workflowRunId) {
+      return { success: false, error: "Estimate is not awaiting timeframe selection." };
+    }
+
+    const [updated] = await db
+      .update(estimateRequestTable)
+      .set({ timeframe: timeframe.timeframe, status: "processing", errorMessage: null })
+      .where(
+        and(
+          eq(estimateRequestTable.id, estimateRequestId),
+          eq(estimateRequestTable.userId, session.user.id),
+          eq(estimateRequestTable.status, "awaiting_confirmation"),
+          isNotNull(estimateRequestTable.intakeConfirmedAt),
+          isNull(estimateRequestTable.timeframe),
+        ),
+      )
+      .returning({ id: estimateRequestTable.id });
+
+    if (!updated) {
+      return { success: false, error: "Timeframe selection is already processing." };
+    }
+
+    resumeSummarizeEstimate({
+      estimateRequestId,
+      userId: session.user.id,
+      workflowRunId: row.workflowRunId,
+      resumeData: timeframe,
+    });
+
+    revalidateEstimatePaths(estimateRequestId);
+    return { success: true, message: "Estimate processing has resumed." };
+  } catch (error) {
+    console.error("Server Action Error (selectEstimateTimeframeAction):", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to save timeframe.",
+    };
+  }
+}
+
+function revalidateEstimatePaths(estimateRequestId: string) {
+  revalidatePath(`/dashboard/estimate/${estimateRequestId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/estimates");
 }
 
 export async function deleteEstimateAction(
