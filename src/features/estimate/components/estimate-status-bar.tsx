@@ -1,6 +1,7 @@
 "use client";
 
 import type { EstimateStatus } from "@/features/estimate/db/schema";
+import type { PipelineSubStage } from "@/features/estimate-extraction-pipeline/progress";
 import {
   Tooltip,
   TooltipContent,
@@ -9,6 +10,25 @@ import {
 import { cn } from "@/lib/utils";
 
 export type StageId = "uploaded" | "processing" | "analyzed" | "priced" | "delivered";
+
+const PIPELINE_SUBSTAGE_TEXT: Record<PipelineSubStage["stageId"], { label: string; description: string }> = {
+  extraction: {
+    label: "Extracting findings",
+    description: "Reading every page of the report for billable items.",
+  },
+  classification: {
+    label: "Classifying items",
+    description: "Sorting extracted findings into trades and cost types.",
+  },
+  enrichment: {
+    label: "Pricing materials & labor",
+    description: "Applying local market pricing to each line item.",
+  },
+  presentation: {
+    label: "Finalizing estimate",
+    description: "Assembling the final estimate for review.",
+  },
+};
 
 const STAGES: { id: StageId; label: string; description: string }[] = [
   { id: "uploaded", label: "Uploaded", description: "Report received and queued." },
@@ -71,6 +91,15 @@ interface EstimateStatusBarProps {
   identityConfirmed?: boolean;
   timeframeSelected?: boolean;
   errorMessage?: string | null;
+  /**
+   * Optional, best-effort sub-stage read from the pipeline's own run
+   * state (see `estimate-extraction-pipeline/progress.ts`). Only ever
+   * consulted while `phase === "processing"`; absent or `null` (feature
+   * unavailable, read failed, or run hasn't reached a sub-stage yet)
+   * falls straight back to the generic "Processing" label — never a
+   * required prop for correct rendering.
+   */
+  pipelineSubStage?: PipelineSubStage | null;
   className?: string;
 }
 
@@ -79,12 +108,16 @@ export function EstimateStatusBar({
   identityConfirmed = false,
   timeframeSelected = false,
   errorMessage,
+  pipelineSubStage = null,
   className,
 }: EstimateStatusBarProps) {
   const phase = getPhase({ status, identityConfirmed, timeframeSelected });
   const litIndex = litUpTo(phase);
   const isFailed = phase === "failed";
   const isActive = phase === "processing" || phase === "identity" || phase === "timeframe";
+  const subStageText =
+    phase === "processing" && pipelineSubStage ? PIPELINE_SUBSTAGE_TEXT[pipelineSubStage.stageId] : null;
+  const displayLabel = subStageText?.label ?? phaseLabel(phase);
 
   return (
     <div
@@ -93,16 +126,19 @@ export function EstimateStatusBar({
       aria-valuemin={0}
       aria-valuemax={STAGES.length}
       aria-valuenow={isFailed ? 0 : Math.max(litIndex, 1)}
-      aria-label={`Estimate status: ${phaseLabel(phase)}`}
+      aria-label={`Estimate status: ${displayLabel}`}
     >
       <div className="flex items-center gap-1.5">
         {STAGES.map((stage, i) => {
           const lit = !isFailed && i <= litIndex;
           const active = isActive && i === litIndex;
           const failed = isFailed && i === 1;
+          const isProcessingStage = stage.id === "processing";
           const tooltipText = failed
             ? errorMessage ?? "Processing failed."
-            : stage.description;
+            : isProcessingStage && subStageText
+              ? subStageText.description
+              : stage.description;
 
           return (
             <Tooltip key={stage.id}>
@@ -119,7 +155,7 @@ export function EstimateStatusBar({
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
                 <div className="font-medium">
-                  {stage.label}
+                  {isProcessingStage && subStageText ? subStageText.label : stage.label}
                   {active && " · in progress"}
                   {failed && " · failed"}
                   {lit && !active && !failed && " ✓"}
@@ -133,7 +169,7 @@ export function EstimateStatusBar({
         })}
       </div>
       <span className="text-xs font-medium text-muted-foreground">
-        {phaseLabel(phase)}
+        {displayLabel}
       </span>
     </div>
   );

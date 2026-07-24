@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FileSearch } from "lucide-react";
 
 import type { IntakeIdentity } from "@/features/estimate-extraction-pipeline/intake";
+import type { PipelineSubStage } from "@/features/estimate-extraction-pipeline/progress";
 import type { EstimateStatus } from "../db/schema";
 import { EstimateConfirmationView } from "./estimate-confirmation-view";
 import { EstimateRetryButton } from "./estimate-retry-button";
@@ -19,6 +20,7 @@ interface EstimateIntakeViewProps {
   identity: IntakeIdentity | null;
   phase: "identity" | "timeframe";
   errorMessage: string | null;
+  pipelineSubStage?: PipelineSubStage | null;
 }
 
 export function EstimateIntakeView({
@@ -27,6 +29,7 @@ export function EstimateIntakeView({
   identity,
   phase,
   errorMessage,
+  pipelineSubStage = null,
 }: EstimateIntakeViewProps) {
   const router = useRouter();
   const isProcessing = status === "uploaded" || status === "processing";
@@ -45,6 +48,7 @@ export function EstimateIntakeView({
         identityConfirmed={Boolean(identity && phase === "timeframe")}
         timeframeSelected={Boolean(identity && phase === "timeframe" && status === "processing")}
         errorMessage={errorMessage}
+        pipelineSubStage={pipelineSubStage}
       />
     </div>
   );

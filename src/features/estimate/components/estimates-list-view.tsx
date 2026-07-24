@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { estimateRequestTable } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { authServerProvider } from "@/auth/server-provider";
+import type { PipelineSubStage } from "@/features/estimate-extraction-pipeline/progress";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { FileText } from "lucide-react";
@@ -21,6 +22,20 @@ export async function EstimatesListView() {
     .from(estimateRequestTable)
     .where(eq(estimateRequestTable.userId, session.user.id))
     .orderBy(desc(estimateRequestTable.createdAt));
+
+  let pipelineSubStages: (PipelineSubStage | null)[] = estimates.map(() => null);
+  if (estimates.some((upload) => upload.status === "processing")) {
+    const { getEstimatePipelineSubStage } = await import(
+      "@/features/estimate-extraction-pipeline/progress"
+    );
+    pipelineSubStages = await Promise.all(
+      estimates.map((upload) =>
+        upload.status === "processing"
+          ? getEstimatePipelineSubStage(upload.workflowRunId)
+          : Promise.resolve(null),
+      ),
+    );
+  }
 
   return (
     <div className="max-w-3xl space-y-6 p-6">
@@ -51,7 +66,7 @@ export async function EstimatesListView() {
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {estimates.map((upload) => {
+              {estimates.map((upload, index) => {
                 const leftBlock = (
                   <div className="flex items-center gap-4 overflow-hidden">
                     <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
@@ -93,6 +108,7 @@ export async function EstimatesListView() {
                         identityConfirmed={Boolean(upload.intakeConfirmedAt)}
                         timeframeSelected={Boolean(upload.timeframe)}
                         errorMessage={upload.errorMessage}
+                        pipelineSubStage={pipelineSubStages[index]}
                       />
                       {upload.status === "failed" && (
                         <EstimateRetryButton id={upload.id} />
