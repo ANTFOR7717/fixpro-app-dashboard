@@ -1,8 +1,84 @@
-import { PDFParse } from 'pdf-parse';
 import type { ParsedDocument } from './schema';
 
 /** Budget for fetching the source PDF from blob storage. */
 const FETCH_TIMEOUT_MS = 60_000;
+
+type DOMMatrixInit = number[] | Float32Array | Float64Array;
+
+class PdfParseDOMMatrixShim {
+  a = 1;
+  b = 0;
+  c = 0;
+  d = 1;
+  e = 0;
+  f = 0;
+
+  constructor(init?: DOMMatrixInit) {
+    if (init) {
+      [this.a, this.b, this.c, this.d, this.e, this.f] = Array.from(init);
+    }
+  }
+
+  translate(tx = 0, ty = 0) {
+    return new PdfParseDOMMatrixShim([this.a, this.b, this.c, this.d, this.e + tx, this.f + ty]);
+  }
+
+  scale(scaleX = 1, scaleY = scaleX) {
+    return new PdfParseDOMMatrixShim([
+      this.a * scaleX,
+      this.b * scaleX,
+      this.c * scaleY,
+      this.d * scaleY,
+      this.e,
+      this.f,
+    ]);
+  }
+
+  multiplySelf(other: PdfParseDOMMatrixShim) {
+    const a = this.a * other.a + this.c * other.b;
+    const b = this.b * other.a + this.d * other.b;
+    const c = this.a * other.c + this.c * other.d;
+    const d = this.b * other.c + this.d * other.d;
+    const e = this.a * other.e + this.c * other.f + this.e;
+    const f = this.b * other.e + this.d * other.f + this.f;
+    [this.a, this.b, this.c, this.d, this.e, this.f] = [a, b, c, d, e, f];
+    return this;
+  }
+
+  preMultiplySelf(other: PdfParseDOMMatrixShim) {
+    const current = new PdfParseDOMMatrixShim([this.a, this.b, this.c, this.d, this.e, this.f]);
+    [this.a, this.b, this.c, this.d, this.e, this.f] = [
+      other.a,
+      other.b,
+      other.c,
+      other.d,
+      other.e,
+      other.f,
+    ];
+    return this.multiplySelf(current);
+  }
+
+  invertSelf() {
+    const det = this.a * this.d - this.b * this.c;
+    if (det === 0) {
+      [this.a, this.b, this.c, this.d, this.e, this.f] = [NaN, NaN, NaN, NaN, NaN, NaN];
+      return this;
+    }
+
+    const a = this.d / det;
+    const b = -this.b / det;
+    const c = -this.c / det;
+    const d = this.a / det;
+    const e = (this.c * this.f - this.d * this.e) / det;
+    const f = (this.b * this.e - this.a * this.f) / det;
+    [this.a, this.b, this.c, this.d, this.e, this.f] = [a, b, c, d, e, f];
+    return this;
+  }
+}
+
+function ensurePdfParseNodeGlobals() {
+  globalThis.DOMMatrix ??= PdfParseDOMMatrixShim as unknown as typeof DOMMatrix;
+}
 
 /**
  * Fetch a PDF from its URL and extract plain text page by page.
@@ -20,6 +96,9 @@ const FETCH_TIMEOUT_MS = 60_000;
  * not catch-and-wrap into a non-throwing result.
  */
 export async function parsePdfFromUrl(fileUrl: string): Promise<ParsedDocument> {
+  ensurePdfParseNodeGlobals();
+  const { PDFParse } = await import('pdf-parse');
+
   const response = await fetch(fileUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!response.ok) {
     throw new Error(
