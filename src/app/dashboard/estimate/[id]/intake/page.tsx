@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { estimateRequestTable } from "@/features/estimate/db/schema";
 import { EstimateIntakeView } from "@/features/estimate/components/estimate-intake-view";
 import { authServerProvider } from "@/auth/server-provider";
-import { intakeIdentitySchema } from "@/features/estimate-extraction-pipeline/intake";
+import { intakeIdentitySchema } from "@/features/estimate-extraction-pipeline/intake/schema";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";

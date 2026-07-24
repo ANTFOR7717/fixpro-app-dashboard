@@ -9,11 +9,15 @@ import { mastra } from "@/features/estimate-extraction-pipeline";
 import {
   collectTimeframeStep,
   confirmIdentityStep,
+} from "@/features/estimate-extraction-pipeline/intake/steps";
+import {
   intakeIdentitySchema,
+  type IntakeIdentity,
+} from "@/features/estimate-extraction-pipeline/intake/schema";
+import {
   readSuspendedIdentity,
   readSuspendedTimeframe,
-  type IntakeIdentity,
-} from "@/features/estimate-extraction-pipeline/intake";
+} from "@/features/estimate-extraction-pipeline/intake/suspension";
 import {
   SUMMARY_ENVELOPE_KIND,
   SUMMARY_ENVELOPE_VERSION_4,
