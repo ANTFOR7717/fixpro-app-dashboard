@@ -21,6 +21,7 @@ export const auth = betterAuth({
     APP_URL,
     "http://localhost:3000",
     "https://fixpro-app-dashboard-*.vercel.app",
+    "https://fixpro-app-dashboard.onrender.com",
   ],
   ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
   experimental: {
