@@ -30,6 +30,13 @@ const PIPELINE_SUBSTAGE_TEXT: Record<PipelineSubStage["stageId"], { label: strin
   },
 };
 
+const SUB_STAGE_ORDER: PipelineSubStage["stageId"][] = [
+  "extraction",
+  "classification",
+  "enrichment",
+  "presentation",
+];
+
 const STAGES: { id: StageId; label: string; description: string }[] = [
   { id: "uploaded", label: "Uploaded", description: "Report received and queued." },
   {
@@ -118,6 +125,8 @@ export function EstimateStatusBar({
   const subStageText =
     phase === "processing" && pipelineSubStage ? PIPELINE_SUBSTAGE_TEXT[pipelineSubStage.stageId] : null;
   const displayLabel = subStageText?.label ?? phaseLabel(phase);
+  const subStageIndex = pipelineSubStage ? SUB_STAGE_ORDER.indexOf(pipelineSubStage.stageId) : -1;
+  const showSubStageBars = phase === "processing" && pipelineSubStage !== null;
 
   return (
     <div
@@ -134,6 +143,44 @@ export function EstimateStatusBar({
           const active = isActive && i === litIndex;
           const failed = isFailed && i === 1;
           const isProcessingStage = stage.id === "processing";
+
+          if (isProcessingStage && showSubStageBars) {
+            return (
+              <div key={stage.id} className="flex min-w-0 flex-1 items-center gap-0.5">
+                {SUB_STAGE_ORDER.map((subStageId, subIndex) => {
+                  const subLit = subIndex < subStageIndex;
+                  const subActive = subIndex === subStageIndex;
+                  const subText = PIPELINE_SUBSTAGE_TEXT[subStageId];
+
+                  return (
+                    <Tooltip key={subStageId}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={cn(
+                            "h-2 min-w-0 flex-1 cursor-default rounded-full transition-colors",
+                            subLit && "bg-primary",
+                            subActive && "animate-pulse bg-primary",
+                            !subLit && !subActive && "bg-muted-foreground/25",
+                          )}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        <div className="font-medium">
+                          {subText.label}
+                          {subActive && " · in progress"}
+                          {subLit && !subActive && " ✓"}
+                        </div>
+                        <div className="max-w-[220px] text-muted-foreground">
+                          {subText.description}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            );
+          }
+
           const tooltipText = failed
             ? errorMessage ?? "Processing failed."
             : isProcessingStage && subStageText
