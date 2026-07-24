@@ -25,6 +25,14 @@ export default async function EstimateIntakePage({
 
   const identity = intakeIdentitySchema.safeParse(row.intakeExtraction);
 
+  let pipelineSubStage = null;
+  if (row.status === "processing") {
+    const { getEstimatePipelineSubStage } = await import(
+      "@/features/estimate-extraction-pipeline/progress"
+    );
+    pipelineSubStage = await getEstimatePipelineSubStage(row.workflowRunId);
+  }
+
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-10">
       <EstimateIntakeView
@@ -33,6 +41,7 @@ export default async function EstimateIntakePage({
         identity={identity.success ? identity.data : null}
         phase={row.intakeConfirmedAt && !row.timeframe ? "timeframe" : "identity"}
         errorMessage={row.errorMessage}
+        pipelineSubStage={pipelineSubStage}
       />
     </main>
   );

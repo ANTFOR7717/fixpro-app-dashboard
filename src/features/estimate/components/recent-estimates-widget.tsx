@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { estimateRequestTable } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { authServerProvider } from "@/auth/server-provider";
+import type { PipelineSubStage } from "@/features/estimate-extraction-pipeline/progress";
 import { headers } from "next/headers";
 import { FileText, ArrowRight } from "lucide-react";
 import { Button } from "@/design-systems/shadcn/components/button";
@@ -24,6 +25,20 @@ export async function RecentEstimatesWidget() {
     .where(eq(estimateRequestTable.userId, session.user.id))
     .orderBy(desc(estimateRequestTable.createdAt))
     .limit(5);
+
+  let pipelineSubStages: (PipelineSubStage | null)[] = recentUploads.map(() => null);
+  if (recentUploads.some((upload) => upload.status === "processing")) {
+    const { getEstimatePipelineSubStage } = await import(
+      "@/features/estimate-extraction-pipeline/progress"
+    );
+    pipelineSubStages = await Promise.all(
+      recentUploads.map((upload) =>
+        upload.status === "processing"
+          ? getEstimatePipelineSubStage(upload.workflowRunId)
+          : Promise.resolve(null),
+      ),
+    );
+  }
 
   if (recentUploads.length === 0) {
     return (
@@ -50,7 +65,7 @@ export async function RecentEstimatesWidget() {
   return (
     <div className="border rounded-xl overflow-hidden shadow-sm bg-card">
       <div className="divide-y divide-border">
-        {recentUploads.map((upload) => {
+        {recentUploads.map((upload, index) => {
           const content = (
             <>
               <div className="flex items-center gap-4 overflow-hidden">
@@ -74,6 +89,7 @@ export async function RecentEstimatesWidget() {
                   identityConfirmed={Boolean(upload.intakeConfirmedAt)}
                   timeframeSelected={Boolean(upload.timeframe)}
                   errorMessage={upload.errorMessage}
+                  pipelineSubStage={pipelineSubStages[index]}
                 />
                 {upload.status === "failed" && (
                   <EstimateRetryButton id={upload.id} />
