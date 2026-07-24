@@ -13,9 +13,9 @@ import {
 } from "@/features/estimate-extraction-pipeline/intake";
 import {
   SUMMARY_ENVELOPE_KIND,
-  SUMMARY_ENVELOPE_VERSION_3,
-  summaryEnvelopeV3Schema,
-  type SummaryEnvelopeV3,
+  SUMMARY_ENVELOPE_VERSION_4,
+  summaryEnvelopeV4Schema,
+  type SummaryEnvelopeV4,
 } from "@/features/estimate/lib/envelope";
 import { estimateRequestTable } from "../db/schema";
 import { classifyError } from "./classify-error";
@@ -149,12 +149,12 @@ export function triggerSummarizeEstimate({
           })
           .where(rowFilter);
       } else if (result.status === "success") {
-        const envelope: SummaryEnvelopeV3 = {
+        const envelope: SummaryEnvelopeV4 = {
           kind: SUMMARY_ENVELOPE_KIND,
-          version: SUMMARY_ENVELOPE_VERSION_3,
+          version: SUMMARY_ENVELOPE_VERSION_4,
           lines: result.result.lines,
         };
-        if (summaryEnvelopeV3Schema.safeParse(envelope).success) {
+        if (summaryEnvelopeV4Schema.safeParse(envelope).success) {
           await db
             .update(estimateRequestTable)
             .set({

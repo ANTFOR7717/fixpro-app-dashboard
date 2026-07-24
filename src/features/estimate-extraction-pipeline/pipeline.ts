@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { extractionFanoutWorkflow } from './extraction';
 import { classificationFanoutWorkflow } from './classification';
 import { enrichmentFanoutWorkflow } from './enrichment';
+import { presentationWorkflow } from './presentation';
 import { parsePdfFromUrl, parsedDocumentSchema } from './document';
 import {
   collectTimeframeStep,
@@ -13,16 +14,19 @@ import {
 } from './intake';
 
 /**
- * The composition root. All three stages — `extractionFanoutWorkflow`,
- * `classificationFanoutWorkflow`, `enrichmentFanoutWorkflow` — are
- * composed directly as steps, via Mastra's own documented "workflows as
- * steps" pattern (`docs/workflows/overview`: a `Workflow` implements
- * `Step`, so it can be passed straight to `.then()`). This is what makes
- * each stage's own internal step graph show up as a nested, expandable
- * graph in Studio — a workflow only wrapped inside a hand-rolled step's
- * `execute()` is invisible to Studio's static graph view, since it only
- * exists inside a function body at runtime, never in the declared step
- * chain.
+ * The composition root. All four stages — `extractionFanoutWorkflow`,
+ * `classificationFanoutWorkflow`, `enrichmentFanoutWorkflow`,
+ * `presentationWorkflow` — are composed directly as steps, via Mastra's
+ * own documented "workflows as steps" pattern (`docs/workflows/overview`:
+ * a `Workflow` implements `Step`, so it can be passed straight to
+ * `.then()`). This is what makes each stage's own internal step graph
+ * show up as a nested, expandable graph in Studio — a workflow only
+ * wrapped inside a hand-rolled step's `execute()` is invisible to
+ * Studio's static graph view, since it only exists inside a function
+ * body at runtime, never in the declared step chain. No stage's own
+ * workflow ever composes a sibling stage internally — that's this
+ * file's job alone, which is also why `presentationWorkflow` is chained
+ * here rather than inside `enrichment/workflow.ts`.
  *
  * Classification's and enrichment's own agents (via `documentLookupTool`)
  * need `parsedDocument` on `RequestContext`. Rather than each stage
@@ -107,7 +111,7 @@ const restoreDocumentContextStep = createStep({
 export const summarizeEstimateWorkflow = createWorkflow({
   id: 'Generate Estimate',
   inputSchema: summarizeEstimateInputSchema,
-  outputSchema: enrichmentFanoutWorkflow.outputSchema,
+  outputSchema: presentationWorkflow.outputSchema,
 })
   .then(parseDocumentStep)
   // Fan out extraction across every page concurrently — one agent call
@@ -123,4 +127,5 @@ export const summarizeEstimateWorkflow = createWorkflow({
   .then(extractionFanoutWorkflow)
   .then(classificationFanoutWorkflow)
   .then(enrichmentFanoutWorkflow)
+  .then(presentationWorkflow)
   .commit();

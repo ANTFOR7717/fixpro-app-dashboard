@@ -1,42 +1,44 @@
 import { z } from 'zod';
-import { enrichedLineSchema, type EnrichedLine } from '@/features/estimate-extraction-pipeline/enrichment';
+import { pricedLineSchema, type PricedLine } from '@/features/estimate-extraction-pipeline/presentation';
 
 export const SUMMARY_ENVELOPE_KIND = 'billable-extraction' as const;
 
-export const SUMMARY_ENVELOPE_VERSION_3 = 3 as const;
+export const SUMMARY_ENVELOPE_VERSION_4 = 4 as const;
 
 /**
- * v3: one `lines` array, each entry an `EnrichedLine` — a classified
- * billable line merged with its own amount and price, determined
- * together by `enrichment/`. An estimate persisted under the OLD
- * unpriced-line (classification-only) or priced-line (deleted pricing
- * module) v3 shapes is explicitly NOT required to keep parsing — it
- * falls through to `'unparseable'` and is recovered via the existing
- * retry flow.
+ * v4: one `lines` array, each entry a `PricedLine` — a presented,
+ * client-facing billable line (`itemName`/`category` from
+ * `presentation/`) with markup pricing applied (`builderCost`/
+ * `markupAmount`/`clientTotal`). Supersedes v3 (`EnrichedLine` only —
+ * no itemName/category/pricing) now that `presentation/` produces this
+ * richer shape. An estimate persisted under the OLD v3 shape is
+ * explicitly NOT required to keep parsing — it falls through to
+ * `'unparseable'` and is recovered via the existing retry flow, same
+ * precedent as the earlier v1/v2 → v3 migration.
  */
-export const summaryEnvelopeV3Schema = z.object({
+export const summaryEnvelopeV4Schema = z.object({
   kind: z.literal(SUMMARY_ENVELOPE_KIND),
-  version: z.literal(SUMMARY_ENVELOPE_VERSION_3),
-  lines: z.array(enrichedLineSchema),
+  version: z.literal(SUMMARY_ENVELOPE_VERSION_4),
+  lines: z.array(pricedLineSchema),
 });
 
-export type SummaryEnvelopeV3 = z.infer<typeof summaryEnvelopeV3Schema>;
+export type SummaryEnvelopeV4 = z.infer<typeof summaryEnvelopeV4Schema>;
 
 /**
  * Discriminated result of parsing `estimate_requests.summary`. The page
  * hands this directly to <EstimateReport /> so the report component never
  * touches JSON or Zod.
  *
- * - 'v3': current production shape.
+ * - 'v4': current production shape.
  * - 'unparseable': `summary` is a non-null string we couldn't parse as
- *   JSON, or it parsed but didn't match the v3 schema. Also what an
+ *   JSON, or it parsed but didn't match the v4 schema. Also what an
  *   estimate persisted under an OLDER v3 shape falls through to —
  *   recovered via the existing retry flow.
  * - 'absent': `summary` is null. The estimate has not produced a summary
  *   yet (or is still processing).
  */
 export type ParsedEnvelope =
-  | { kind: 'v3'; lines: EnrichedLine[] }
+  | { kind: 'v4'; lines: PricedLine[] }
   | { kind: 'unparseable'; raw: string }
   | { kind: 'absent' };
 
@@ -50,9 +52,9 @@ export function parseSummaryEnvelope(summary: string | null): ParsedEnvelope {
     return { kind: 'unparseable', raw: summary };
   }
 
-  const v3 = summaryEnvelopeV3Schema.safeParse(json);
-  if (v3.success) {
-    return { kind: 'v3', lines: v3.data.lines };
+  const v4 = summaryEnvelopeV4Schema.safeParse(json);
+  if (v4.success) {
+    return { kind: 'v4', lines: v4.data.lines };
   }
 
   return { kind: 'unparseable', raw: summary };

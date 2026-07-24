@@ -1,6 +1,6 @@
 import { createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import { enrichedLineSchema, presentedGroupSchema, presentationSummarySchema } from './schema';
+import { enrichedLineSchema } from './schema';
 import {
   tradeGroupInputSchema,
   flattenGroupsStep,
@@ -9,7 +9,6 @@ import {
   enrichLaborLineStep,
   combineEnrichedLinesStep,
 } from './domain/wrapper';
-import { presentationWorkflow } from './domain/presentation';
 
 /** How many material/labor lines enrich concurrently, per phase. */
 const ENRICHMENT_CONCURRENCY = 5;
@@ -21,19 +20,20 @@ const ENRICHMENT_CONCURRENCY = 5;
  * only its own finding's resolved materials (`buildLaborInputsStep`).
  * Trade grouping from classification is flattened away for processing
  * (`flattenGroupsStep`) and never needed again — it was only ever a
- * display grouping, not a processing boundary. Finally runs
- * `presentationWorkflow` (workflow-as-step, its own nested Studio graph)
- * to produce client-facing category/name/tags/markup data. Output is
- * additive — `lines` is unchanged from before the presentation stage
- * existed, so `estimate/lib/workflow.ts`/`envelope.ts` keep working.
+ * display grouping, not a processing boundary.
+ *
+ * Presentation is a separate, later pipeline stage (`presentation/`) —
+ * composed by `pipeline.ts` directly after this workflow, the same way
+ * `pipeline.ts` chains extraction → classification → enrichment, not
+ * nested inside any one stage's own workflow. Keeping it out of here
+ * also avoids a circular import: `presentation/workflow.ts` needs
+ * `EnrichedLine` from this module, so this module cannot also depend on
+ * `presentation`.
  */
 export const enrichmentFanoutWorkflow = createWorkflow({
   id: 'enrichment-fanout',
   inputSchema: z.object({ groups: z.array(tradeGroupInputSchema) }),
-  outputSchema: z.object({
-    lines: z.array(enrichedLineSchema),
-    presentation: z.object({ groups: z.array(presentedGroupSchema), summary: presentationSummarySchema }),
-  }),
+  outputSchema: z.object({ lines: z.array(enrichedLineSchema) }),
 })
   .then(flattenGroupsStep)
   .map(async ({ inputData }) => inputData.Material.map((line) => ({ line })))
@@ -42,9 +42,4 @@ export const enrichmentFanoutWorkflow = createWorkflow({
   .map(async ({ inputData }) => inputData.laborItems)
   .foreach(enrichLaborLineStep, { concurrency: ENRICHMENT_CONCURRENCY })
   .then(combineEnrichedLinesStep)
-  .then(presentationWorkflow)
-  .map(async ({ inputData, getStepResult }) => {
-    const { lines } = getStepResult(combineEnrichedLinesStep);
-    return { lines, presentation: inputData };
-  })
   .commit();

@@ -6,7 +6,8 @@ import { DuckDBStore } from '@mastra/duckdb';
 import { Observability, MastraStorageExporter } from '@mastra/observability';
 import { findingExtractorAgent } from './extraction';
 import { classifyFindingsBatchAgent } from './classification';
-import { enrichmentAgent, presentationAgent } from './enrichment';
+import { enrichmentAgent } from './enrichment';
+import { presentationAgent } from './presentation';
 import { identityAgent } from './intake';
 import { summarizeEstimateWorkflow } from './pipeline';
 
