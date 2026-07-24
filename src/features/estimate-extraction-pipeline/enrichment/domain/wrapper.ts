@@ -98,11 +98,10 @@ export const buildLaborInputsStep = createStep({
 
 /**
  * Combines the just-enriched labor lines with `buildLaborInputsStep`'s
- * already-enriched materials into one flat line list. A named step
- * (not an anonymous `.map()`) specifically so `enrichment/workflow.ts`
- * can `getStepResult()` it after the presentation stage runs — the
- * presentation step's own output is `{ groups, summary }`, not `lines`,
- * so the original flat line list has to be fetched back out this way.
+ * already-enriched materials into one flat line list — `enrichment`'s
+ * own final output, `{ lines: EnrichedLine[] }`. `presentation/` is a
+ * separate, later pipeline stage composed by `pipeline.ts`, not inside
+ * this workflow.
  */
 export const combineEnrichedLinesStep = createStep({
   id: 'Combine Enriched Lines',
