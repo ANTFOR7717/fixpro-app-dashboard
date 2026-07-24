@@ -2,7 +2,6 @@ import { Mastra } from '@mastra/core/mastra';
 import { MastraCompositeStore } from '@mastra/core/storage';
 import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
-import { DuckDBStore } from '@mastra/duckdb';
 import { Observability, MastraStorageExporter } from '@mastra/observability';
 import { findingExtractorAgent } from './extraction';
 import { classifyFindingsBatchAgent } from './classification';
@@ -42,7 +41,6 @@ export const mastra = new Mastra({
   storage: new MastraCompositeStore({
     id: 'composite-storage',
     default: new LibSQLStore({ id: 'mastra-storage', url: 'file:./mastra.db' }),
-    domains: { observability: await new DuckDBStore().getStore('observability') },
   }),
   observability: new Observability({
     configs: {
